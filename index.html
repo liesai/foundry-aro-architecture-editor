@@ -1,0 +1,1753 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Architecture IA — Microsoft Foundry + Azure Red Hat OpenShift</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(12, 28, 48, .86);
+      --panel-strong: #0d2138;
+      --line: rgba(155, 187, 215, .18);
+      --text: #f0f7ff;
+      --muted: #93abc2;
+      --cyan: #56d9ff;
+      --blue: #548cff;
+      --purple: #b481ff;
+      --green: #65e6a7;
+      --orange: #ffad5c;
+      --yellow: #ffe071;
+      --pink: #ff7eb6;
+      --red: #ff7185;
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, .35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(50, 132, 255, .16), transparent 26%),
+        radial-gradient(circle at 85% 12%, rgba(167, 94, 255, .13), transparent 24%),
+        linear-gradient(160deg, #07111f 0%, #091522 50%, #06101c 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-x: hidden;
+    }
+
+    button { font: inherit; }
+
+    .app-shell {
+      width: min(1880px, 100%);
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 18px;
+    }
+
+    .brand { max-width: 930px; }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 42px);
+      line-height: 1.07;
+      letter-spacing: -.035em;
+    }
+
+    .subtitle {
+      max-width: 900px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .principle {
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      gap: 7px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(8, 22, 37, .64);
+      box-shadow: var(--shadow);
+      white-space: nowrap;
+    }
+
+    .principle span {
+      padding: 7px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .principle .app { color: #bcd0ff; background: rgba(84, 140, 255, .12); }
+    .principle .ai { color: #dac4ff; background: rgba(180, 129, 255, .12); }
+    .principle .data { color: #b6f7d4; background: rgba(101, 230, 167, .12); }
+
+    .scenario-strip {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+      overflow-x: auto;
+      padding: 2px 2px 8px;
+      scrollbar-width: thin;
+    }
+
+    .editor-strip {
+      display: none;
+      align-items: center;
+      gap: 7px;
+      margin: -2px 0 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 173, 92, .28);
+      border-radius: 14px;
+      background: rgba(55, 34, 20, .48);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .16);
+      overflow-x: auto;
+    }
+
+    .editor-strip.visible { display: flex; }
+
+    .editor-strip .edit-hint {
+      margin-right: auto;
+      color: #ffc98f;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .edit-action {
+      flex: 0 0 auto;
+      height: 31px;
+      padding: 0 11px;
+      border: 1px solid rgba(255, 173, 92, .24);
+      border-radius: 9px;
+      color: #f4d4b1;
+      background: rgba(255, 173, 92, .07);
+      font-size: 11px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .edit-action:hover { color: white; border-color: rgba(255, 173, 92, .62); }
+    .edit-action:disabled { cursor: not-allowed; opacity: .35; }
+    .edit-action.danger { color: #ff9cac; border-color: rgba(255, 113, 133, .28); }
+
+    .save-status {
+      flex: 0 0 auto;
+      padding-left: 8px;
+      color: #84dcb1;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .scenario-button,
+    .tool-button {
+      border: 1px solid var(--line);
+      color: #b7c9d9;
+      background: rgba(12, 29, 48, .72);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, color .18s ease, background .18s ease;
+    }
+
+    .scenario-button {
+      flex: 0 0 auto;
+      padding: 9px 13px;
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .scenario-button:hover,
+    .tool-button:hover { transform: translateY(-1px); border-color: rgba(86, 217, 255, .5); color: white; }
+
+    .scenario-button.active {
+      color: #03141d;
+      border-color: transparent;
+      background: var(--scenario-color, var(--cyan));
+      box-shadow: 0 6px 22px color-mix(in srgb, var(--scenario-color, var(--cyan)) 30%, transparent);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 338px;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .canvas-card,
+    .detail-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(8, 21, 36, .74);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .canvas-card {
+      position: relative;
+      min-height: 690px;
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      position: absolute;
+      z-index: 4;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(5, 16, 29, .82);
+      backdrop-filter: blur(12px);
+    }
+
+    .tool-button {
+      min-width: 34px;
+      height: 32px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .tool-button.active { color: #06131d; background: var(--cyan); border-color: transparent; }
+
+    #architecture {
+      width: 100%;
+      height: 100%;
+      min-height: 690px;
+      display: block;
+      touch-action: none;
+      cursor: grab;
+      user-select: none;
+    }
+
+    #architecture.dragging { cursor: grabbing; }
+
+    .detail-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 690px;
+      overflow: hidden;
+    }
+
+    .detail-hero {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(145deg, color-mix(in srgb, var(--scenario-color, var(--cyan)) 13%, transparent), transparent 65%);
+    }
+
+    .detail-kicker {
+      color: var(--scenario-color, var(--cyan));
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .detail-hero h2 {
+      margin: 7px 0 8px;
+      font-size: 24px;
+      line-height: 1.12;
+      letter-spacing: -.025em;
+    }
+
+    .detail-hero p,
+    .node-description {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+
+    .detail-body {
+      flex: 1;
+      padding: 17px 20px 20px;
+      overflow-y: auto;
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      color: #cfdeeb;
+      font-size: 11px;
+      font-weight: 830;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .flow-steps {
+      display: grid;
+      gap: 8px;
+      margin: 0 0 20px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .flow-steps li {
+      display: grid;
+      grid-template-columns: 25px 1fr;
+      gap: 9px;
+      align-items: start;
+      color: #c7d7e5;
+      font-size: 12px;
+      line-height: 1.42;
+    }
+
+    .step-number {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      color: #06131d;
+      background: var(--scenario-color, var(--cyan));
+      font-size: 10px;
+      font-weight: 900;
+      box-shadow: 0 0 18px color-mix(in srgb, var(--scenario-color, var(--cyan)) 28%, transparent);
+    }
+
+    .decision-box {
+      margin-top: 12px;
+      padding: 13px;
+      border: 1px solid rgba(255, 255, 255, .07);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .decision-box strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #eaf5ff;
+      font-size: 12px;
+    }
+
+    .decision-box p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 1.5;
+    }
+
+    .edit-form { display: grid; gap: 11px; }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .edit-form label {
+      display: grid;
+      gap: 5px;
+      color: #9db4c8;
+      font-size: 10px;
+      font-weight: 760;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .edit-form input,
+    .edit-form select,
+    .edit-form textarea {
+      width: 100%;
+      border: 1px solid rgba(153, 185, 212, .22);
+      border-radius: 9px;
+      outline: none;
+      color: #eaf5ff;
+      background: rgba(5, 17, 30, .82);
+      font: 500 12px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .edit-form input,
+    .edit-form select { height: 36px; padding: 0 9px; }
+    .edit-form textarea { min-height: 76px; padding: 8px 9px; resize: vertical; }
+    .edit-form input:focus,
+    .edit-form select:focus,
+    .edit-form textarea:focus { border-color: var(--scenario-color, var(--cyan)); }
+
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 3px;
+    }
+
+    .form-button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid rgba(153, 185, 212, .25);
+      border-radius: 9px;
+      color: #dceaf5;
+      background: rgba(255,255,255,.045);
+      font-size: 11px;
+      font-weight: 780;
+      cursor: pointer;
+    }
+
+    .form-button.primary { color: #06131d; border-color: transparent; background: var(--scenario-color, var(--cyan)); }
+    .form-button.danger { color: #ff9cac; border-color: rgba(255, 113, 133, .3); }
+    .form-note { color: #7893aa; font-size: 10.5px; line-height: 1.45; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: center;
+      margin-top: 14px;
+      padding: 12px 16px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      color: var(--muted);
+      background: rgba(8, 21, 36, .6);
+      font-size: 11px;
+    }
+
+    .legend b { color: #dceaf5; font-weight: 780; }
+
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--legend-color);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--legend-color) 40%, transparent);
+    }
+
+    .footer-note {
+      margin: 10px 2px 0;
+      color: #6f8aa2;
+      font-size: 10.5px;
+      text-align: right;
+    }
+
+    /* SVG */
+    .zone-frame {
+      fill: rgba(12, 29, 48, .52);
+      stroke: rgba(149, 187, 218, .18);
+      stroke-width: 1.2;
+      rx: 22;
+    }
+
+    .zone-frame.app-zone { fill: rgba(32, 71, 140, .095); stroke: rgba(84, 140, 255, .28); }
+    .zone-frame.ai-zone { fill: rgba(112, 64, 170, .095); stroke: rgba(180, 129, 255, .29); }
+    .zone-frame.data-zone { fill: rgba(36, 116, 79, .08); stroke: rgba(101, 230, 167, .24); }
+
+    .zone-title {
+      fill: #d8e7f3;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    .zone-subtitle {
+      fill: #6f8ba5;
+      font-size: 9.5px;
+      font-weight: 600;
+    }
+
+    .node .node-shell {
+      fill: #10243a;
+      stroke: rgba(153, 185, 212, .25);
+      stroke-width: 1.15;
+      rx: 13;
+      transition: opacity .25s ease, stroke .25s ease, fill .25s ease, filter .25s ease;
+    }
+
+    .node { cursor: pointer; transition: opacity .25s ease; }
+    .node:hover .node-shell { stroke: rgba(255,255,255,.62); }
+    .node.dimmed { opacity: .24; }
+    .node.active .node-shell {
+      fill: color-mix(in srgb, var(--active-color) 13%, #10243a);
+      stroke: var(--active-color);
+      filter: drop-shadow(0 0 10px color-mix(in srgb, var(--active-color) 32%, transparent));
+    }
+
+    .node.selected .node-shell { stroke-width: 2.6; }
+
+    body.editor-on .node { cursor: move; }
+    body.editor-on .node.dimmed { opacity: .62; }
+    body.editor-on .node .node-shell { stroke-dasharray: 5 3; }
+    body.editor-on .flow-path { cursor: pointer; pointer-events: stroke; }
+    body.editor-on .flow-path:hover { stroke-width: 5; opacity: 1; }
+    .flow-hit { fill: none; stroke: transparent; stroke-width: 18; pointer-events: stroke; cursor: pointer; }
+    .flow-path.selected-link { stroke-width: 5; opacity: 1; }
+    .flow-particle, .flow-badge { pointer-events: none; }
+
+    .node-icon-bg { fill: rgba(255,255,255,.055); }
+    .node-icon-text { fill: #dbeaf6; font-size: 11px; font-weight: 850; text-anchor: middle; }
+    .node-title { fill: #eef7ff; font-size: 11.5px; font-weight: 760; }
+    .node-subtitle { fill: #7893aa; font-size: 8.4px; font-weight: 560; }
+    .node-boundary { fill: #7893aa; font-size: 7.4px; font-weight: 780; letter-spacing: .08em; }
+
+    .base-link {
+      fill: none;
+      stroke: rgba(133, 167, 195, .08);
+      stroke-width: 1.2;
+      stroke-dasharray: 3 6;
+    }
+
+    .flow-path {
+      fill: none;
+      stroke: var(--flow-color);
+      stroke-width: 2.6;
+      stroke-linecap: round;
+      opacity: .7;
+      filter: drop-shadow(0 0 5px color-mix(in srgb, var(--flow-color) 35%, transparent));
+      marker-end: url(#arrowhead);
+    }
+
+    .flow-path.secondary { stroke-width: 1.7; opacity: .42; stroke-dasharray: 5 5; }
+    .flow-particle { fill: var(--flow-color); filter: drop-shadow(0 0 6px var(--flow-color)); }
+
+    .flow-badge circle {
+      fill: #071522;
+      stroke: var(--flow-color);
+      stroke-width: 1.5;
+    }
+
+    .flow-badge text {
+      fill: white;
+      font-size: 8px;
+      font-weight: 900;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .foundation-shell {
+      fill: rgba(8, 23, 39, .91);
+      stroke: rgba(149, 187, 218, .2);
+      stroke-width: 1.2;
+      rx: 18;
+    }
+
+    .foundation-title { fill: #dceaf5; font-size: 12px; font-weight: 820; }
+    .foundation-pill { fill: rgba(255, 255, 255, .045); stroke: rgba(255, 255, 255, .08); rx: 11; }
+    .foundation-label { fill: #9eb4c7; font-size: 9px; font-weight: 680; text-anchor: middle; }
+
+    .network-band {
+      fill: rgba(86, 217, 255, .025);
+      stroke: rgba(86, 217, 255, .12);
+      stroke-dasharray: 5 5;
+      rx: 16;
+    }
+
+    .network-label { fill: #6e9ab4; font-size: 8.5px; font-weight: 700; letter-spacing: .08em; }
+
+    @media (max-width: 1120px) {
+      .topbar { flex-direction: column; }
+      .principle { align-self: stretch; grid-template-columns: repeat(3, 1fr); text-align: center; }
+      .workspace { grid-template-columns: 1fr; }
+      .detail-card { min-height: auto; }
+      .detail-body { max-height: 420px; }
+    }
+
+    @media (max-width: 650px) {
+      .app-shell { padding: 12px; }
+      .principle { grid-template-columns: 1fr; }
+      .canvas-toolbar { top: 7px; right: 7px; }
+      .canvas-card, #architecture { min-height: 560px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; }
+    }
+
+    @media print {
+      body { background: #07111f; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .app-shell { width: 100%; padding: 0; }
+      .scenario-strip, .editor-strip, .canvas-toolbar, .detail-card, .footer-note { display: none !important; }
+      .workspace { display: block; }
+      .canvas-card { border: 0; min-height: 0; }
+      #architecture { min-height: 0; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <p class="eyebrow">Architecture de référence · Plateforme IA d’entreprise</p>
+        <h1>Microsoft Foundry + Azure Red Hat OpenShift</h1>
+        <p class="subtitle">
+          Une plateforme IA managée dans Foundry, des applications et outils métier sur ARO,
+          et des données isolées par workload. Sélectionnez un scénario pour suivre son flux de bout en bout.
+        </p>
+      </div>
+      <div class="principle" aria-label="Principe de placement">
+        <span class="app">ARO = applications</span>
+        <span class="ai">Foundry = capacités IA</span>
+        <span class="data">Workload = données</span>
+      </div>
+    </header>
+
+    <nav class="scenario-strip" id="scenarioStrip" aria-label="Cas d’usage"></nav>
+
+    <div class="editor-strip" id="editorStrip" aria-label="Outils d’édition">
+      <span class="edit-hint">Mode édition · glissez un composant ou cliquez un lien pour le modifier</span>
+      <button class="edit-action" id="addNode">+ Composant</button>
+      <button class="edit-action" id="addLink">+ Lien</button>
+      <button class="edit-action" id="editScenario">Scénario</button>
+      <button class="edit-action" id="undoEdit" title="Annuler (Ctrl+Z)">↶ Annuler</button>
+      <button class="edit-action" id="redoEdit" title="Rétablir (Ctrl+Maj+Z)">↷ Rétablir</button>
+      <button class="edit-action" id="exportJson">Exporter JSON</button>
+      <button class="edit-action" id="exportSvg">Exporter SVG</button>
+      <button class="edit-action" id="importJson">Importer</button>
+      <button class="edit-action danger" id="resetEditor">Réinitialiser</button>
+      <span class="save-status" id="saveStatus">Sauvegardé localement</span>
+      <input id="importFile" type="file" accept="application/json,.json" hidden />
+    </div>
+
+    <section class="workspace">
+      <div class="canvas-card">
+        <div class="canvas-toolbar" aria-label="Contrôles du diagramme">
+          <button class="tool-button" id="zoomOut" title="Réduire" aria-label="Réduire">−</button>
+          <button class="tool-button" id="zoomReset" title="Réinitialiser le cadrage" aria-label="Réinitialiser le cadrage">1:1</button>
+          <button class="tool-button" id="zoomIn" title="Agrandir" aria-label="Agrandir">+</button>
+          <button class="tool-button" id="pauseAnimation" title="Suspendre ou reprendre les flux" aria-label="Suspendre ou reprendre les flux">Pause</button>
+          <button class="tool-button" id="autoPlay" title="Faire défiler les cas d’usage" aria-label="Faire défiler les cas d’usage">Auto</button>
+          <button class="tool-button" id="editMode" title="Activer le mode édition" aria-label="Activer le mode édition">Éditer</button>
+        </div>
+
+        <svg id="architecture" viewBox="0 0 1900 1120" role="img" aria-labelledby="svgTitle svgDescription">
+          <title id="svgTitle">Architecture animée Microsoft Foundry et Azure Red Hat OpenShift</title>
+          <desc id="svgDescription">Flux applicatifs, IA, données et agents au travers d’une architecture sécurisée Azure.</desc>
+          <defs>
+            <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+              <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(145,179,207,.045)" stroke-width="1" />
+            </pattern>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="context-stroke" />
+            </marker>
+            <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect width="1900" height="1120" fill="url(#grid)" />
+          <g id="zoneLayer"></g>
+          <g id="baseLayer"></g>
+          <g id="flowLayer"></g>
+          <g id="nodeLayer"></g>
+          <g id="overlayLayer"></g>
+        </svg>
+      </div>
+
+      <aside class="detail-card" aria-live="polite">
+        <div class="detail-hero">
+          <div class="detail-kicker" id="detailKicker">Scénario actif</div>
+          <h2 id="detailTitle">RAG conversationnel</h2>
+          <p id="detailDescription"></p>
+        </div>
+        <div class="detail-body">
+          <h3 class="section-title" id="detailSectionTitle">Flux de bout en bout</h3>
+          <ol class="flow-steps" id="flowSteps"></ol>
+          <div id="detailDecision"></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="legend" aria-label="Légende">
+      <b>Flux</b>
+      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--cyan)"></i>Utilisateur / entrée</span>
+      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--blue)"></i>Applicatif</span>
+      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--purple)"></i>IA / modèle</span>
+      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--green)"></i>Données</span>
+      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--orange)"></i>Outil / action</span>
+      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--yellow)"></i>Asynchrone</span>
+      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--pink)"></i>Humain / contrôle</span>
+      <span>· Cliquez un composant pour connaître son rôle · Glissez pour déplacer · Molette pour zoomer</span>
+    </section>
+    <p class="footer-note">Diagramme autonome HTML/SVG · aucune donnée ni bibliothèque externe</p>
+  </main>
+
+  <script>
+    const NS = "http://www.w3.org/2000/svg";
+    const colors = {
+      ingress: "#56d9ff",
+      app: "#548cff",
+      ai: "#b481ff",
+      data: "#65e6a7",
+      tool: "#ffad5c",
+      async: "#ffe071",
+      human: "#ff7eb6",
+      security: "#ff7185"
+    };
+
+    const zones = [
+      { id: "channels", x: 28, y: 66, w: 226, h: 842, title: "Canaux & producteurs", subtitle: "Utilisateurs, documents, événements" },
+      { id: "edge", x: 278, y: 66, w: 220, h: 842, title: "Accès & confiance", subtitle: "Périmètre d’entrée et identité" },
+      { id: "aro", x: 522, y: 66, w: 504, h: 842, title: "Azure Red Hat OpenShift", subtitle: "Plan applicatif · logique métier", cls: "app-zone" },
+      { id: "foundry", x: 1050, y: 66, w: 382, h: 842, title: "Microsoft Foundry", subtitle: "Plan IA managé · modèles et agents", cls: "ai-zone" },
+      { id: "data", x: 1456, y: 66, w: 416, h: 842, title: "Données & SI du workload", subtitle: "État, connaissance et systèmes métier", cls: "data-zone" }
+    ];
+
+    let nodes = [
+      { id: "users", zone: "channels", x: 52, y: 140, w: 178, h: 68, icon: "UX", title: "Web · Mobile · Teams", sub: "Expérience utilisateur", boundary: "CANAL", description: "Canaux humains. Ils appellent l’application, jamais directement les modèles ou les systèmes métier." },
+      { id: "apiClients", zone: "channels", x: 52, y: 246, w: 178, h: 68, icon: "API", title: "Applications clientes", sub: "API internes et partenaires", boundary: "MACHINE", description: "Consommateurs machine-to-machine utilisant des contrats d’API versionnés et une identité applicative." },
+      { id: "documents", zone: "channels", x: 52, y: 352, w: 178, h: 68, icon: "DOC", title: "Documents & médias", sub: "PDF, image, audio, vidéo", boundary: "CONTENU", description: "Contenus déposés pour extraction, indexation, résumé, classification ou analyse multimodale." },
+      { id: "events", zone: "channels", x: 52, y: 458, w: 178, h: 68, icon: "EVT", title: "Événements & batch", sub: "Fichiers, files, planification", boundary: "ASYNCHRONE", description: "Déclencheurs asynchrones pour traitements en volume, enrichissement ou inférence batch." },
+      { id: "voice", zone: "channels", x: 52, y: 564, w: 178, h: 68, icon: "AV", title: "Voix · Vision · IoT", sub: "Temps réel et multimodal", boundary: "STREAM", description: "Flux audio, image et télémétrie nécessitant transcription, vision ou interaction temps réel." },
+      { id: "employee", zone: "channels", x: 52, y: 670, w: 178, h: 68, icon: "H", title: "Employé / opérateur", sub: "Validation humaine", boundary: "HUMAIN", description: "Intervenant humain pour l’approbation, la correction ou l’escalade d’une action sensible." },
+
+      { id: "waf", zone: "edge", x: 302, y: 192, w: 172, h: 74, icon: "WAF", title: "Front Door / App GW", sub: "WAF, TLS, DDoS, routage", boundary: "INGRESS", description: "Point d’entrée exposé. Il termine TLS, applique le WAF et route uniquement vers les services ARO autorisés." },
+      { id: "entra", zone: "edge", x: 302, y: 330, w: 172, h: 74, icon: "ID", title: "Microsoft Entra ID", sub: "OIDC, RBAC, OBO", boundary: "IDENTITÉ", description: "Identités utilisateurs, applications et agents. Le mode On-Behalf-Of permet de conserver le contexte utilisateur lorsque nécessaire." },
+      { id: "eventBroker", zone: "edge", x: 302, y: 468, w: 172, h: 74, icon: "Q", title: "Event Grid / Service Bus", sub: "Découplage et reprise", boundary: "MESSAGING", description: "Découple producteurs et workers, absorbe les pics, permet la reprise et les dead-letter queues." },
+      { id: "humanGate", zone: "edge", x: 302, y: 648, w: 172, h: 74, icon: "OK", title: "Approbation humaine", sub: "Décision avant action", boundary: "CONTRÔLE", description: "Étape de validation explicite pour les actions irréversibles, financières, réglementées ou à fort impact." },
+
+      { id: "aroIngress", zone: "aro", x: 548, y: 132, w: 206, h: 74, icon: "R", title: "OpenShift Router", sub: "Ingress interne / externe", boundary: "ARO", description: "Entrée du cluster. Les routes publiques et privées restent séparées et protégées par NetworkPolicy." },
+      { id: "appApi", zone: "aro", x: 786, y: 132, w: 214, h: 74, icon: "BFF", title: "API / BFF métier", sub: "AuthZ, validation, contrats", boundary: "APPLICATION", description: "Façade applicative et principal point d’autorisation fonctionnelle. Elle protège les modèles des accès directs." },
+      { id: "inference", zone: "aro", x: 548, y: 244, w: 206, h: 74, icon: "INF", title: "Service d’inférence", sub: "Prompts, routage fonctionnel", boundary: "APPLICATION", description: "Prépare les entrées, sélectionne un modèle logique, contrôle les formats et adapte la réponse au domaine." },
+      { id: "chat", zone: "aro", x: 786, y: 244, w: 214, h: 74, icon: "CHAT", title: "Service conversationnel", sub: "Session, streaming, contexte", boundary: "APPLICATION", description: "Gère les sessions, le streaming SSE/WebSocket, les limites de contexte et l’expérience de conversation." },
+      { id: "rag", zone: "aro", x: 548, y: 356, w: 206, h: 74, icon: "RAG", title: "Orchestrateur RAG", sub: "Recherche, ACL, citations", boundary: "APPLICATION", description: "Applique les ACL documentaires, construit les requêtes, récupère les passages et produit des réponses sourcées." },
+      { id: "ingestion", zone: "aro", x: 786, y: 356, w: 214, h: 74, icon: "ETL", title: "Pipeline d’ingestion", sub: "OCR, chunking, enrichissement", boundary: "DATA OPS", description: "Extrait, normalise, découpe et enrichit le contenu avant génération des embeddings et indexation." },
+      { id: "customAgent", zone: "aro", x: 548, y: 468, w: 206, h: 74, icon: "AG", title: "Runtime agent custom", sub: "Workflow, mémoire, checkpoint", boundary: "AGENT ARO", description: "Orchestration agentique sur ARO pour les workflows complexes, durables, multi-agents ou fortement personnalisés." },
+      { id: "mcp", zone: "aro", x: 786, y: 468, w: 214, h: 74, icon: "MCP", title: "Outils / serveurs MCP", sub: "Adaptateurs métier bornés", boundary: "TOOLS", description: "Expose aux agents des opérations métier étroites, typées, auditées et autorisées côté serveur." },
+      { id: "workers", zone: "aro", x: 548, y: 580, w: 206, h: 74, icon: "WK", title: "Workers asynchrones", sub: "Batch, retry, DLQ", boundary: "APPLICATION", description: "Traite les files en parallèle avec idempotence, reprise, limites de débit et contrôle de coût." },
+      { id: "policyApi", zone: "aro", x: 786, y: 580, w: 214, h: 74, icon: "POL", title: "Policy / Action API", sub: "Règles métier et autorisation", boundary: "APPLICATION", description: "Réapplique les règles métier avant chaque action. Une instruction de modèle ne constitue jamais une autorisation." },
+      { id: "otel", zone: "aro", x: 548, y: 716, w: 452, h: 66, icon: "OT", title: "OpenTelemetry Collector", sub: "Trace distribuée · corrélation · redaction", boundary: "OBSERVABILITÉ", description: "Corrèle les appels entre ARO, APIM, Foundry, outils et données sans journaliser aveuglément les contenus sensibles." },
+
+      { id: "apim", zone: "foundry", x: 1076, y: 132, w: 330, h: 74, icon: "GW", title: "API Management · AI Gateway", sub: "Quotas tokens, routage, cache, métriques", boundary: "PLATEFORME", description: "Passerelle facultative mais recommandée à l’échelle : identités clientes, quotas, routage multi-modèle et mesure des coûts." },
+      { id: "models", zone: "foundry", x: 1076, y: 244, w: 154, h: 74, icon: "LLM", title: "Modèles génératifs", sub: "Chat, reasoning, image", boundary: "FOUNDRY", description: "Déploiements de modèles gouvernés, versionnés et dimensionnés selon les SLO, quotas et contraintes de résidence." },
+      { id: "cognitive", zone: "foundry", x: 1252, y: 244, w: 154, h: 74, icon: "AI", title: "Services cognitifs", sub: "Speech, Vision, Doc Intel", boundary: "FOUNDRY", description: "Capacités spécialisées pour OCR, documents, parole, traduction, vision et modération." },
+      { id: "embedding", zone: "foundry", x: 1076, y: 356, w: 154, h: 74, icon: "VEC", title: "Embeddings / rerank", sub: "Recherche sémantique", boundary: "FOUNDRY", description: "Transforme les passages et requêtes en représentations vectorielles et peut améliorer le classement des résultats." },
+      { id: "safety", zone: "foundry", x: 1252, y: 356, w: 154, h: 74, icon: "SAFE", title: "Safety & guardrails", sub: "Filtres, Prompt Shields", boundary: "GOUVERNANCE", description: "Détecte contenus à risque et tentatives d’injection. Il complète les contrôles applicatifs sans les remplacer." },
+      { id: "agentService", zone: "foundry", x: 1076, y: 468, w: 330, h: 74, icon: "FA", title: "Foundry Agent Service", sub: "Agent managé, identité, outils", boundary: "AGENT MANAGÉ", description: "Runtime agentique managé adapté aux agents standards, aux outils supportés et au besoin de réduire l’exploitation." },
+      { id: "evaluation", zone: "foundry", x: 1076, y: 580, w: 330, h: 74, icon: "EVAL", title: "Évaluation & red teaming", sub: "Qualité, sécurité, groundedness", boundary: "LLMOps", description: "Évaluations hors ligne et continues : succès métier, qualité, groundedness, sécurité, latence et coûts." },
+      { id: "foundryControl", zone: "foundry", x: 1076, y: 716, w: 330, h: 66, icon: "CP", title: "Projets · catalogue · versions", sub: "Un projet par cas d’usage", boundary: "CONTROL PLANE", description: "Cycle de vie des prompts, modèles et agents. En production, l’isolation par workload limite les blast radii et conflits de quota." },
+
+      { id: "blob", zone: "data", x: 1482, y: 132, w: 170, h: 74, icon: "OBJ", title: "Blob / ADLS", sub: "Sources et artefacts", boundary: "WORKLOAD", description: "Stockage documentaire propre au workload avec classification, chiffrement, rétention et Private Endpoint." },
+      { id: "search", zone: "data", x: 1676, y: 132, w: 170, h: 74, icon: "SRCH", title: "Azure AI Search", sub: "Index texte + vecteur", boundary: "WORKLOAD", description: "Index de connaissance filtré par attributs et ACL. Les résultats doivent respecter les droits de l’utilisateur final." },
+      { id: "state", zone: "data", x: 1482, y: 244, w: 170, h: 74, icon: "DB", title: "Cosmos / SQL / Redis", sub: "Sessions, état, checkpoints", boundary: "WORKLOAD", description: "État conversationnel, cache et checkpoints. La mémoire durable ne doit pas dépendre implicitement du contexte du modèle." },
+      { id: "eventStore", zone: "data", x: 1676, y: 244, w: 170, h: 74, icon: "LOG", title: "Event Hubs / files", sub: "Flux et traitement massif", boundary: "WORKLOAD", description: "Ingestion événementielle et découplage des traitements à grande échelle." },
+      { id: "businessApis", zone: "data", x: 1482, y: 408, w: 170, h: 74, icon: "ERP", title: "ERP · CRM · ITSM", sub: "Systèmes d’enregistrement", boundary: "ENTREPRISE", description: "Systèmes autoritatifs. Les agents y accèdent uniquement via des API contrôlées et des identités de moindre privilège." },
+      { id: "databases", zone: "data", x: 1676, y: 408, w: 170, h: 74, icon: "SQL", title: "Bases & data products", sub: "Données gouvernées", boundary: "ENTREPRISE", description: "Sources structurées exposées via vues, API ou produits de données, avec filtrage et traçabilité." },
+      { id: "saas", zone: "data", x: 1482, y: 520, w: 170, h: 74, icon: "SaaS", title: "SaaS / Internet", sub: "Sources et outils externes", boundary: "EXTERNE", description: "Destinations externes atteintes via une liste d’autorisation, inspection egress et contrôle de l’exfiltration." },
+      { id: "m365", zone: "data", x: 1676, y: 520, w: 170, h: 74, icon: "M365", title: "M365 / Copilot / Teams", sub: "Publication et collaboration", boundary: "ENTREPRISE", description: "Canaux de publication d’agents et sources collaboratives, avec identité utilisateur et règles de conformité." },
+      { id: "audit", zone: "data", x: 1482, y: 716, w: 364, h: 66, icon: "AUD", title: "Audit et preuves du workload", sub: "Décisions, actions, coûts et conformité", boundary: "GOUVERNANCE", description: "Journal d’audit métier séparé des traces techniques : demandeur, décision, approbation, action et résultat." }
+    ];
+
+    let scenarios = {
+      overview: {
+        label: "Vue globale", color: "#56d9ff",
+        description: "Topologie complète : les applications résident sur ARO, les capacités IA dans Foundry et les données restent sous la responsabilité de chaque workload.",
+        decision: "Utilisez cette vue pour expliquer les frontières de responsabilité. Sélectionnez ensuite un cas d’usage pour afficher un parcours numéroté.",
+        steps: [
+          "Les canaux entrent par un périmètre WAF et une identité Entra.",
+          "ARO porte les API, conversations, RAG, workers, outils et workflows métier.",
+          "APIM gouverne l’accès aux modèles et services IA partagés.",
+          "Foundry porte modèles, capacités cognitives, agents managés et évaluations.",
+          "Les données, systèmes d’enregistrement et preuves restent isolés par workload."
+        ],
+        flows: [
+          ["users", "waf", "ingress"], ["waf", "aroIngress", "ingress"], ["aroIngress", "appApi", "app"],
+          ["appApi", "apim", "app"], ["apim", "models", "ai"], ["rag", "search", "data"],
+          ["agentService", "mcp", "tool"], ["mcp", "businessApis", "tool"], ["otel", "evaluation", "ai"],
+          ["customAgent", "state", "data"], ["ingestion", "blob", "data"], ["workers", "eventStore", "async"]
+        ]
+      },
+      inference: {
+        label: "Inférence API", color: "#548cff",
+        description: "Une application consomme un modèle génératif sans état, derrière une API métier et une passerelle IA.",
+        decision: "ARO garde les contrats, validations et autorisations. Le client ne reçoit jamais de clé ni d’accès direct au modèle.",
+        steps: [
+          "L’application cliente s’authentifie avec Entra ID.",
+          "Le WAF et le Router ARO acheminent la requête vers l’API métier.",
+          "Le service d’inférence valide et construit la requête de modèle.",
+          "APIM applique quota de tokens, routage et métriques.",
+          "Foundry filtre, exécute le modèle et retourne la réponse.",
+          "La trace corrélée alimente l’évaluation et le suivi des coûts."
+        ],
+        flows: [
+          ["apiClients", "entra", "ingress"], ["apiClients", "waf", "ingress"], ["waf", "aroIngress", "ingress"],
+          ["aroIngress", "appApi", "app"], ["appApi", "inference", "app"], ["inference", "apim", "app"],
+          ["apim", "safety", "security"], ["apim", "models", "ai"], ["models", "inference", "ai"],
+          ["inference", "appApi", "app"], ["appApi", "apiClients", "ingress"], ["inference", "otel", "app", true],
+          ["otel", "evaluation", "ai", true]
+        ]
+      },
+      cognitive: {
+        label: "Document AI", color: "#65e6a7",
+        description: "Traitement de documents : dépôt, extraction OCR/Document Intelligence, classification, indexation et restitution.",
+        decision: "Le document original et les résultats extraits restent dans le périmètre du workload. Foundry fournit la capacité d’analyse.",
+        steps: [
+          "Un document ou média est déposé via l’application.",
+          "Le pipeline d’ingestion stocke l’original et déclenche le traitement.",
+          "Document Intelligence, Vision ou Speech extrait la structure et le contenu.",
+          "Le pipeline normalise et classe les résultats.",
+          "Les embeddings et l’index rendent le contenu recherchable.",
+          "L’audit conserve la provenance et le statut du traitement."
+        ],
+        flows: [
+          ["documents", "waf", "ingress"], ["waf", "aroIngress", "ingress"], ["aroIngress", "ingestion", "app"],
+          ["ingestion", "blob", "data"], ["ingestion", "apim", "app"], ["apim", "cognitive", "ai"],
+          ["cognitive", "ingestion", "ai"], ["ingestion", "embedding", "ai"], ["embedding", "search", "data"],
+          ["ingestion", "audit", "data", true]
+        ]
+      },
+      chat: {
+        label: "Chatbot", color: "#56d9ff",
+        description: "Conversation sans RAG complexe : authentification, streaming, contexte court et génération sécurisée.",
+        decision: "Le service conversationnel reste sur ARO. Un simple chatbot ne justifie pas automatiquement un runtime agentique.",
+        steps: [
+          "L’utilisateur ouvre le canal Web, mobile ou Teams.",
+          "L’identité et les autorisations sont validées.",
+          "Le BFF transmet au service conversationnel et ouvre le streaming.",
+          "Le contexte utile est lu dans le stockage de session.",
+          "APIM et les guardrails contrôlent l’appel au modèle.",
+          "La réponse est diffusée au fil de l’eau et la session est mise à jour."
+        ],
+        flows: [
+          ["users", "entra", "ingress"], ["users", "waf", "ingress"], ["waf", "aroIngress", "ingress"],
+          ["aroIngress", "appApi", "app"], ["appApi", "chat", "app"], ["chat", "state", "data"],
+          ["chat", "apim", "app"], ["apim", "safety", "security"], ["apim", "models", "ai"],
+          ["models", "chat", "ai"], ["chat", "users", "ingress"], ["chat", "state", "data", true]
+        ]
+      },
+      rag: {
+        label: "Chatbot RAG", color: "#65e6a7",
+        description: "Réponse sourcée sur des connaissances privées, avec filtrage documentaire selon l’identité de l’utilisateur.",
+        decision: "Les ACL doivent filtrer la recherche avant l’envoi des passages au modèle. Le prompt ne doit jamais décider seul de l’accès aux documents.",
+        steps: [
+          "L’utilisateur pose une question dans le canal conversationnel.",
+          "Le service transmet identité, groupes et contexte à l’orchestrateur RAG.",
+          "La requête est vectorisée et enrichie.",
+          "AI Search applique les filtres de sécurité et retourne les passages autorisés.",
+          "Le modèle génère une réponse fondée sur ces passages.",
+          "Le service restitue réponse et citations, puis mesure qualité et groundedness."
+        ],
+        flows: [
+          ["users", "waf", "ingress"], ["waf", "aroIngress", "ingress"], ["aroIngress", "chat", "app"],
+          ["chat", "rag", "app"], ["rag", "embedding", "ai"], ["embedding", "rag", "ai"],
+          ["rag", "search", "data"], ["search", "rag", "data"], ["rag", "apim", "app"],
+          ["apim", "safety", "security"], ["apim", "models", "ai"], ["models", "rag", "ai"],
+          ["rag", "chat", "app"], ["chat", "users", "ingress"], ["rag", "evaluation", "ai", true]
+        ]
+      },
+      multimodal: {
+        label: "Voix & multimodal", color: "#ffad5c",
+        description: "Interaction audio ou image en temps réel : transcription, analyse visuelle, raisonnement et synthèse de réponse.",
+        decision: "Séparez la chaîne média temps réel de l’orchestration métier. Contrôlez la latence, la taille des contenus et la conservation des enregistrements.",
+        steps: [
+          "Le canal transmet audio, image ou télémétrie via une entrée sécurisée.",
+          "ARO gère session, débit, consentement et prétraitement.",
+          "Speech, Vision ou un modèle multimodal interprète le signal.",
+          "Le modèle génératif combine l’interprétation et le contexte métier.",
+          "La réponse est adaptée au canal, par exemple texte ou voix.",
+          "Les traces techniques sont conservées sans dupliquer inutilement les médias sensibles."
+        ],
+        flows: [
+          ["voice", "waf", "ingress"], ["waf", "aroIngress", "ingress"], ["aroIngress", "chat", "app"],
+          ["chat", "apim", "app"], ["apim", "cognitive", "ai"], ["cognitive", "chat", "ai"],
+          ["chat", "apim", "app"], ["apim", "models", "ai"], ["models", "chat", "ai"],
+          ["chat", "voice", "ingress"], ["chat", "otel", "app", true]
+        ]
+      },
+      agentManaged: {
+        label: "Agent Foundry", color: "#b481ff",
+        description: "Agent managé dans Foundry : le runtime planifie, mais les outils métier étroits et autorisés résident sur ARO.",
+        decision: "Choisissez ce modèle pour des agents standards et des outils compatibles. Utilisez une identité dédiée par agent et limitez chaque outil à une capacité métier précise.",
+        steps: [
+          "L’utilisateur exprime une intention via l’application ARO.",
+          "Le BFF appelle l’endpoint privé de l’agent avec son identité.",
+          "Foundry Agent Service planifie et appelle le modèle.",
+          "L’agent invoque un outil MCP privé hébergé sur ARO.",
+          "L’API de politique vérifie l’identité, les paramètres et les règles métier.",
+          "L’outil lit ou agit sur le SI, puis retourne un résultat borné.",
+          "L’agent compose la réponse et les traces alimentent évaluation et audit."
+        ],
+        flows: [
+          ["users", "waf", "ingress"], ["waf", "aroIngress", "ingress"], ["aroIngress", "appApi", "app"],
+          ["appApi", "agentService", "ai"], ["agentService", "models", "ai"], ["models", "agentService", "ai"],
+          ["agentService", "mcp", "tool"], ["mcp", "policyApi", "tool"], ["policyApi", "businessApis", "tool"],
+          ["businessApis", "mcp", "tool"], ["mcp", "agentService", "tool"], ["agentService", "appApi", "ai"],
+          ["appApi", "users", "ingress"], ["agentService", "evaluation", "ai", true], ["policyApi", "audit", "data", true]
+        ]
+      },
+      agentCustom: {
+        label: "Agent custom ARO", color: "#ff7eb6",
+        description: "Runtime agentique sur ARO pour workflows complexes, état durable, multi-agents, frameworks spécifiques ou portabilité.",
+        decision: "ARO maîtrise le runtime, les checkpoints et la reprise. Foundry reste le fournisseur de modèles, de sécurité et d’évaluation.",
+        steps: [
+          "L’API crée une exécution agentique durable sur ARO.",
+          "Le runtime charge état, plan et checkpoint du workload.",
+          "Il appelle les modèles via l’AI Gateway.",
+          "Il choisit un outil, mais l’API de politique autorise réellement l’action.",
+          "Les résultats sont persistés afin de permettre reprise et audit.",
+          "Le workflow peut boucler, déléguer ou demander une validation humaine.",
+          "Les traces OpenTelemetry sont corrélées avec les appels Foundry."
+        ],
+        flows: [
+          ["apiClients", "waf", "ingress"], ["waf", "aroIngress", "ingress"], ["aroIngress", "appApi", "app"],
+          ["appApi", "customAgent", "app"], ["customAgent", "state", "data"], ["customAgent", "apim", "app"],
+          ["apim", "models", "ai"], ["models", "customAgent", "ai"], ["customAgent", "mcp", "tool"],
+          ["mcp", "policyApi", "tool"], ["policyApi", "databases", "tool"], ["databases", "mcp", "tool"],
+          ["mcp", "customAgent", "tool"], ["customAgent", "state", "data", true], ["customAgent", "otel", "app", true]
+        ]
+      },
+      batch: {
+        label: "Batch & événements", color: "#ffe071",
+        description: "Traitement asynchrone et volumétrique avec files, workers parallèles, contrôle de débit, reprise et audit.",
+        decision: "Le broker absorbe les pics et protège les quotas du modèle. Rendez les workers idempotents et conservez les échecs dans une DLQ.",
+        steps: [
+          "Un événement, fichier ou planificateur déclenche un travail.",
+          "Service Bus ou Event Grid persiste et distribue le message.",
+          "Les workers ARO chargent les données sources du workload.",
+          "APIM limite la concurrence et route vers le modèle approprié.",
+          "Les résultats sont stockés puis un événement de fin est publié.",
+          "L’audit capture coûts, version de modèle, erreurs et reprises."
+        ],
+        flows: [
+          ["events", "eventBroker", "async"], ["eventBroker", "workers", "async"], ["eventStore", "workers", "data"],
+          ["blob", "workers", "data"], ["workers", "apim", "async"], ["apim", "models", "ai"],
+          ["models", "workers", "ai"], ["workers", "eventStore", "data"], ["workers", "audit", "data", true],
+          ["workers", "otel", "app", true]
+        ]
+      },
+      humanLoop: {
+        label: "Agent + humain", color: "#ff7eb6",
+        description: "Action agentique sensible avec préparation automatisée, validation humaine obligatoire et preuve métier complète.",
+        decision: "L’agent recommande; l’humain approuve; l’API métier autorise et exécute. Aucun de ces trois rôles ne doit être confondu.",
+        steps: [
+          "L’agent analyse la demande et prépare une action structurée.",
+          "L’API de politique évalue risque, portée et autorisations.",
+          "Une tâche d’approbation est présentée à l’opérateur compétent.",
+          "Après validation, un jeton ou ordre à durée limitée revient à l’API.",
+          "L’API appelle le système d’enregistrement, jamais le modèle directement.",
+          "Décision, approbateur, action et résultat sont inscrits dans l’audit."
+        ],
+        flows: [
+          ["users", "waf", "ingress"], ["waf", "aroIngress", "ingress"], ["aroIngress", "customAgent", "app"],
+          ["customAgent", "apim", "app"], ["apim", "models", "ai"], ["models", "customAgent", "ai"],
+          ["customAgent", "policyApi", "tool"], ["policyApi", "humanGate", "human"], ["humanGate", "employee", "human"],
+          ["employee", "humanGate", "human"], ["humanGate", "policyApi", "human"], ["policyApi", "businessApis", "tool"],
+          ["businessApis", "policyApi", "tool"], ["policyApi", "audit", "data"], ["policyApi", "customAgent", "tool"]
+        ]
+      },
+      multiAgent: {
+        label: "Multi-agent", color: "#ffad5c",
+        description: "Coordination de plusieurs compétences agentiques avec état durable, budgets, outils spécialisés et limites explicites.",
+        decision: "Réservez le multi-agent aux problèmes réellement décomposables. Définissez budget, profondeur maximale, timeout et responsabilité de chaque agent.",
+        steps: [
+          "Un agent superviseur reçoit un objectif borné.",
+          "Il crée des tâches spécialisées et enregistre le plan dans l’état durable.",
+          "Les agents appellent les modèles sous quotas et budgets séparés.",
+          "Les outils MCP exposent les capacités métier minimales nécessaires.",
+          "Les résultats intermédiaires sont vérifiés avant agrégation.",
+          "Une politique de terminaison évite les boucles et dépassements de coût.",
+          "Le résultat et l’arbre de délégation sont évalués et audités."
+        ],
+        flows: [
+          ["apiClients", "aroIngress", "ingress"], ["aroIngress", "customAgent", "app"], ["customAgent", "state", "data"],
+          ["customAgent", "agentService", "ai"], ["agentService", "models", "ai"], ["customAgent", "apim", "app"],
+          ["apim", "models", "ai"], ["agentService", "mcp", "tool"], ["customAgent", "mcp", "tool"],
+          ["mcp", "databases", "tool"], ["mcp", "saas", "tool"], ["mcp", "customAgent", "tool"],
+          ["customAgent", "state", "data", true], ["customAgent", "evaluation", "ai", true], ["customAgent", "audit", "data", true]
+        ]
+      }
+    };
+
+    const foundations = [
+      "Hub / vWAN / Firewall", "Private Link & DNS privé", "Workload Identity", "Key Vault",
+      "Azure Policy / Defender", "Purview & classification", "Monitor / App Insights", "GitOps / IaC / FinOps"
+    ];
+
+    const STORAGE_KEY = "foundry-aro-architecture-editor-v1";
+    const defaultState = JSON.parse(JSON.stringify({ nodes, scenarios }));
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if (saved?.nodes?.length && saved?.scenarios && Object.keys(saved.scenarios).length) {
+        nodes = saved.nodes;
+        scenarios = saved.scenarios;
+      }
+    } catch (error) {
+      console.warn("État local ignoré :", error);
+    }
+
+    let nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
+    const svg = document.getElementById("architecture");
+    const zoneLayer = document.getElementById("zoneLayer");
+    const baseLayer = document.getElementById("baseLayer");
+    const flowLayer = document.getElementById("flowLayer");
+    const nodeLayer = document.getElementById("nodeLayer");
+    const overlayLayer = document.getElementById("overlayLayer");
+    const detailTitle = document.getElementById("detailTitle");
+    const detailDescription = document.getElementById("detailDescription");
+    const detailKicker = document.getElementById("detailKicker");
+    const detailSectionTitle = document.getElementById("detailSectionTitle");
+    const detailDecision = document.getElementById("detailDecision");
+    const flowSteps = document.getElementById("flowSteps");
+    const strip = document.getElementById("scenarioStrip");
+    const editorStrip = document.getElementById("editorStrip");
+    const saveStatus = document.getElementById("saveStatus");
+
+    let activeScenario = scenarios.rag ? "rag" : Object.keys(scenarios)[0];
+    let selectedNode = null;
+    let selectedLink = null;
+    let editMode = false;
+    let animationPaused = false;
+    let autoTimer = null;
+    let viewBox = { x: 0, y: 0, w: 1900, h: 1120 };
+    let dragStart = null;
+    let nodeDrag = null;
+    let suppressNodeClick = false;
+    let history = [JSON.stringify({ nodes, scenarios })];
+    let historyIndex = 0;
+
+    function el(name, attrs = {}, parent) {
+      const item = document.createElementNS(NS, name);
+      for (const [key, value] of Object.entries(attrs)) {
+        if (key === "text") item.textContent = value;
+        else item.setAttribute(key, value);
+      }
+      if (parent) parent.appendChild(item);
+      return item;
+    }
+
+    function htmlEscape(value) {
+      return String(value).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+    }
+
+    function snapshot() {
+      return JSON.stringify({ nodes, scenarios });
+    }
+
+    function saveLocal(message = "Sauvegardé localement") {
+      let saved = true;
+      try {
+        localStorage.setItem(STORAGE_KEY, snapshot());
+        saveStatus.textContent = message;
+        saveStatus.style.color = "#84dcb1";
+      } catch (error) {
+        saved = false;
+        saveStatus.textContent = "Sauvegarde locale indisponible — exportez le JSON";
+        saveStatus.style.color = "#ffad5c";
+      }
+      clearTimeout(saveLocal.timer);
+      if (saved) saveLocal.timer = setTimeout(() => { saveStatus.textContent = "Sauvegardé localement"; }, 1600);
+    }
+
+    function updateHistoryButtons() {
+      document.getElementById("undoEdit").disabled = historyIndex <= 0;
+      document.getElementById("redoEdit").disabled = historyIndex >= history.length - 1;
+    }
+
+    function commit(message = "Modification enregistrée") {
+      const current = snapshot();
+      if (history[historyIndex] !== current) {
+        history = history.slice(0, historyIndex + 1);
+        history.push(current);
+        if (history.length > 60) history.shift();
+        historyIndex = history.length - 1;
+      }
+      saveLocal(message);
+      updateHistoryButtons();
+    }
+
+    function restoreSnapshot(raw) {
+      const state = JSON.parse(raw);
+      nodes = state.nodes;
+      scenarios = state.scenarios;
+      if (!scenarios[activeScenario]) activeScenario = Object.keys(scenarios)[0];
+      selectedNode = null;
+      selectedLink = null;
+      refreshDiagram();
+      saveLocal("Historique restauré");
+      updateHistoryButtons();
+    }
+
+    function validateState(state) {
+      if (!state || !Array.isArray(state.nodes) || !state.nodes.length || !state.scenarios || Array.isArray(state.scenarios)) {
+        throw new Error("Structure JSON invalide");
+      }
+      const ids = new Set();
+      for (const n of state.nodes) {
+        if (!n.id || ids.has(n.id) || !Number.isFinite(Number(n.x)) || !Number.isFinite(Number(n.y))) {
+          throw new Error("Nœud invalide ou identifiant dupliqué");
+        }
+        ids.add(n.id);
+      }
+      for (const scenario of Object.values(state.scenarios)) {
+        if (!scenario.label || !Array.isArray(scenario.flows) || !Array.isArray(scenario.steps)) throw new Error("Scénario invalide");
+        for (const flow of scenario.flows) {
+          if (!ids.has(flow[0]) || !ids.has(flow[1]) || !colors[flow[2]]) throw new Error("Lien invalide dans un scénario");
+        }
+      }
+      return true;
+    }
+
+    function downloadFile(name, content, mime) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function rebuildNodeMap() {
+      nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
+    }
+
+    function refreshDiagram() {
+      rebuildNodeMap();
+      baseLayer.replaceChildren();
+      nodeLayer.replaceChildren();
+      renderBaseLinks();
+      renderNodes();
+      renderScenarioButtons();
+      renderFlows(activeScenario);
+      showScenarioDetails(activeScenario);
+    }
+
+    function renderZones() {
+      zones.forEach(z => {
+        const g = el("g", {}, zoneLayer);
+        el("rect", { x: z.x, y: z.y, width: z.w, height: z.h, class: `zone-frame ${z.cls || ""}` }, g);
+        el("text", { x: z.x + 18, y: z.y + 28, class: "zone-title", text: z.title }, g);
+        el("text", { x: z.x + 18, y: z.y + 45, class: "zone-subtitle", text: z.subtitle }, g);
+      });
+
+      el("rect", { x: 28, y: 930, width: 1844, height: 158, class: "network-band" }, zoneLayer);
+      el("text", { x: 48, y: 954, class: "network-label", text: "FONDATIONS TRANSVERSES · SÉCURITÉ · CONNECTIVITÉ · OPÉRATIONS" }, zoneLayer);
+      el("rect", { x: 46, y: 970, width: 1808, height: 96, class: "foundation-shell" }, zoneLayer);
+      el("text", { x: 68, y: 1000, class: "foundation-title", text: "Socle de plateforme" }, zoneLayer);
+
+      foundations.forEach((label, i) => {
+        const x = 210 + i * 199;
+        el("rect", { x, y: 986, width: 181, height: 48, class: "foundation-pill" }, zoneLayer);
+        el("text", { x: x + 90.5, y: 1015, class: "foundation-label", text: label }, zoneLayer);
+      });
+      el("text", { x: 210, y: 1051, class: "zone-subtitle", text: "Appliqué à tous les scénarios : moindre privilège · réseau privé · traçabilité · séparation dev/test/prod · budgets et SLO" }, zoneLayer);
+    }
+
+    function clientToSvg(clientX, clientY) {
+      const point = svg.createSVGPoint();
+      point.x = clientX;
+      point.y = clientY;
+      return point.matrixTransform(svg.getScreenCTM().inverse());
+    }
+
+    function finishNodeDrag(event) {
+      if (!nodeDrag) return;
+      const drag = nodeDrag;
+      nodeDrag = null;
+      if (!drag.moved) return;
+      const point = clientToSvg(event.clientX, event.clientY);
+      const node = nodeMap[drag.id];
+      const snap = value => Math.round(value / 10) * 10;
+      node.x = Math.max(30, Math.min(1870 - node.w, snap(drag.nodeX + point.x - drag.startX)));
+      node.y = Math.max(72, Math.min(900 - node.h, snap(drag.nodeY + point.y - drag.startY)));
+      const cx = node.x + node.w / 2;
+      const cy = node.y + node.h / 2;
+      const zone = zones.find(z => cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h);
+      if (zone) node.zone = zone.id;
+      suppressNodeClick = true;
+      commit("Position enregistrée");
+      refreshDiagram();
+      showNode(node.id);
+    }
+
+    function renderNodes() {
+      nodes.forEach(n => {
+        const g = el("g", { class: "node", "data-node": n.id, tabindex: "0", role: "button", "aria-label": n.title }, nodeLayer);
+        g.style.setProperty("--active-color", colors.app);
+        el("rect", { x: n.x, y: n.y, width: n.w, height: n.h, class: "node-shell" }, g);
+        el("rect", { x: n.x + 10, y: n.y + 12, width: 38, height: n.h - 24, rx: 9, class: "node-icon-bg" }, g);
+        el("text", { x: n.x + 29, y: n.y + n.h / 2 + 4, class: "node-icon-text", text: n.icon }, g);
+        el("text", { x: n.x + 59, y: n.y + 25, class: "node-title", text: n.title }, g);
+        el("text", { x: n.x + 59, y: n.y + 43, class: "node-subtitle", text: n.sub }, g);
+        el("text", { x: n.x + 59, y: n.y + 58, class: "node-boundary", text: n.boundary }, g);
+        g.addEventListener("pointerdown", event => {
+          if (!editMode) return;
+          event.stopPropagation();
+          g.setPointerCapture(event.pointerId);
+          const point = clientToSvg(event.clientX, event.clientY);
+          nodeDrag = { id: n.id, g, startX: point.x, startY: point.y, nodeX: n.x, nodeY: n.y, moved: false };
+        });
+        g.addEventListener("pointermove", event => {
+          if (!nodeDrag || nodeDrag.id !== n.id) return;
+          const point = clientToSvg(event.clientX, event.clientY);
+          const dx = point.x - nodeDrag.startX;
+          const dy = point.y - nodeDrag.startY;
+          if (Math.abs(dx) + Math.abs(dy) > 3) nodeDrag.moved = true;
+          nodeDrag.g.setAttribute("transform", `translate(${dx} ${dy})`);
+        });
+        g.addEventListener("pointerup", finishNodeDrag);
+        g.addEventListener("pointercancel", finishNodeDrag);
+        g.addEventListener("click", event => {
+          event.stopPropagation();
+          if (suppressNodeClick) { suppressNodeClick = false; return; }
+          showNode(n.id);
+        });
+        g.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); showNode(n.id); }
+        });
+      });
+    }
+
+    function center(n) { return { x: n.x + n.w / 2, y: n.y + n.h / 2 }; }
+
+    function anchor(from, to, outgoing = true) {
+      const a = center(from), b = center(to);
+      const dx = b.x - a.x, dy = b.y - a.y;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        return { x: a.x + (outgoing ? Math.sign(dx) : -Math.sign(dx)) * from.w / 2, y: a.y };
+      }
+      return { x: a.x, y: a.y + (outgoing ? Math.sign(dy) : -Math.sign(dy)) * from.h / 2 };
+    }
+
+    function route(fromId, toId, index = 0) {
+      const from = nodeMap[fromId], to = nodeMap[toId];
+      const start = anchor(from, to, true);
+      const end = anchor(to, from, true);
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const bend = ((index % 3) - 1) * 12;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        const c = Math.max(44, Math.abs(dx) * .42);
+        const direction = Math.sign(dx) || 1;
+        return `M ${start.x} ${start.y + bend} C ${start.x + c * direction} ${start.y + bend}, ${end.x - c * direction} ${end.y + bend}, ${end.x} ${end.y + bend}`;
+      }
+      const c = Math.max(38, Math.abs(dy) * .42);
+      const direction = Math.sign(dy) || 1;
+      return `M ${start.x + bend} ${start.y} C ${start.x + bend} ${start.y + c * direction}, ${end.x + bend} ${end.y - c * direction}, ${end.x + bend} ${end.y}`;
+    }
+
+    function renderBaseLinks() {
+      const links = [
+        ["waf", "aroIngress"], ["entra", "appApi"], ["aroIngress", "appApi"], ["appApi", "apim"],
+        ["apim", "models"], ["apim", "cognitive"], ["rag", "search"], ["ingestion", "blob"],
+        ["ingestion", "embedding"], ["customAgent", "state"], ["agentService", "mcp"], ["mcp", "businessApis"],
+        ["workers", "eventStore"], ["otel", "evaluation"], ["policyApi", "audit"]
+      ];
+      links.filter(link => nodeMap[link[0]] && nodeMap[link[1]])
+        .forEach((link, i) => el("path", { d: route(link[0], link[1], i), class: "base-link" }, baseLayer));
+    }
+
+    function renderScenarioButtons() {
+      strip.replaceChildren();
+      Object.entries(scenarios).forEach(([id, scenario]) => {
+        const button = document.createElement("button");
+        button.className = `scenario-button ${id === activeScenario ? "active" : ""}`;
+        button.dataset.scenario = id;
+        button.style.setProperty("--scenario-color", scenario.color);
+        button.textContent = scenario.label;
+        button.addEventListener("click", () => selectScenario(id));
+        strip.appendChild(button);
+      });
+    }
+
+    function renderFlows(id) {
+      flowLayer.replaceChildren();
+      overlayLayer.replaceChildren();
+      const scenario = scenarios[id];
+      const activeNodes = new Set();
+      const isOverview = id === "overview";
+
+      scenario.flows.forEach((flow, index) => {
+        const [from, to, type, secondary = false] = flow;
+        if (!nodeMap[from] || !nodeMap[to]) return;
+        activeNodes.add(from); activeNodes.add(to);
+        const color = colors[type] || scenario.color;
+        const pathId = `flow-${id}-${index}`;
+        const flowD = route(from, to, index);
+        if (editMode) {
+          const hit = el("path", { d: flowD, class: "flow-hit", "data-flow-index": index }, flowLayer);
+          hit.addEventListener("click", event => { event.stopPropagation(); showLinkEditor(index); });
+        }
+        const path = el("path", {
+          id: pathId,
+          d: flowD,
+          class: `flow-path ${secondary ? "secondary" : ""} ${selectedLink === index ? "selected-link" : ""}`,
+          "data-flow-index": index,
+          style: `--flow-color:${color}`
+        }, flowLayer);
+        const title = el("title", {}, path);
+        title.textContent = `${nodeMap[from].title} → ${nodeMap[to].title}`;
+        path.addEventListener("click", event => {
+          if (!editMode) return;
+          event.stopPropagation();
+          showLinkEditor(index);
+        });
+
+        if (!secondary) {
+          const particleCount = isOverview ? 1 : 2;
+          for (let p = 0; p < particleCount; p++) {
+            const circle = el("circle", {
+              r: p === 0 ? 4.1 : 2.8,
+              class: "flow-particle",
+              style: `--flow-color:${color}`
+            }, flowLayer);
+            const motion = el("animateMotion", {
+              dur: `${2.5 + (index % 4) * .45}s`,
+              begin: `${p * 1.3 + (index % 5) * .18}s`,
+              repeatCount: "indefinite",
+              rotate: "auto"
+            }, circle);
+            el("mpath", { href: `#${pathId}` }, motion);
+          }
+        }
+
+        if (!isOverview && !secondary) {
+          const point = path.getPointAtLength(path.getTotalLength() * .53);
+          const badge = el("g", { class: "flow-badge", style: `--flow-color:${color}` }, overlayLayer);
+          el("circle", { cx: point.x, cy: point.y, r: 9 }, badge);
+          el("text", { x: point.x, y: point.y + .5, text: String(index + 1) }, badge);
+        }
+      });
+
+      document.querySelectorAll(".node").forEach(g => {
+        const nodeId = g.dataset.node;
+        g.classList.toggle("active", activeNodes.has(nodeId));
+        g.classList.toggle("dimmed", !activeNodes.has(nodeId));
+        g.classList.toggle("selected", selectedNode === nodeId);
+        g.style.setProperty("--active-color", scenario.color);
+      });
+
+      if (animationPaused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations();
+    }
+
+    function showScenarioDetails(id) {
+      const scenario = scenarios[id];
+      document.documentElement.style.setProperty("--scenario-color", scenario.color);
+      detailKicker.textContent = "Scénario actif";
+      detailTitle.textContent = scenario.label;
+      detailDescription.textContent = scenario.description;
+      detailSectionTitle.textContent = "Flux de bout en bout";
+      flowSteps.innerHTML = scenario.steps.map((step, i) => `<li><span class="step-number">${i + 1}</span><span>${htmlEscape(step)}</span></li>`).join("");
+      detailDecision.innerHTML = `<div class="decision-box"><strong>Décision d’architecture</strong><p>${htmlEscape(scenario.decision)}</p></div>`;
+    }
+
+    function optionList(items, selected) {
+      return items.map(([value, label]) => `<option value="${htmlEscape(value)}" ${value === selected ? "selected" : ""}>${htmlEscape(label)}</option>`).join("");
+    }
+
+    function showNodeEditor(id = null) {
+      const creating = id == null;
+      const n = creating ? {
+        id: "", zone: "aro", x: 680, y: 820, w: 206, h: 74, icon: "NEW",
+        title: "Nouveau composant", sub: "Description courte", boundary: "APPLICATION", description: "Rôle du composant dans l’architecture."
+      } : nodeMap[id];
+      selectedNode = creating ? null : id;
+      selectedLink = null;
+      renderFlows(activeScenario);
+      detailKicker.textContent = creating ? "Éditeur · nouveau composant" : `Éditeur · ${n.boundary}`;
+      detailTitle.textContent = creating ? "Ajouter un composant" : n.title;
+      detailDescription.textContent = "Les modifications sont conservées localement et peuvent être exportées en JSON.";
+      detailSectionTitle.textContent = "Propriétés";
+      const zoneOptions = zones.map(z => [z.id, z.title]);
+      flowSteps.innerHTML = `<li style="display:block"><form class="edit-form" id="nodeForm">
+        <label>Nom<input name="title" maxlength="34" required value="${htmlEscape(n.title)}"></label>
+        <label>Sous-titre<input name="sub" maxlength="42" value="${htmlEscape(n.sub)}"></label>
+        <div class="field-grid">
+          <label>Icône / sigle<input name="icon" maxlength="5" value="${htmlEscape(n.icon)}"></label>
+          <label>Catégorie<input name="boundary" maxlength="18" value="${htmlEscape(n.boundary)}"></label>
+        </div>
+        <label>Zone<select name="zone">${optionList(zoneOptions, n.zone)}</select></label>
+        <label>Description<textarea name="description">${htmlEscape(n.description)}</textarea></label>
+        <div class="form-actions">
+          <button class="form-button primary" type="submit">${creating ? "Ajouter" : "Appliquer"}</button>
+          ${creating ? "" : '<button class="form-button danger" type="button" id="deleteNode">Supprimer</button>'}
+          <button class="form-button" type="button" id="cancelNodeEdit">Annuler</button>
+        </div>
+      </form></li>`;
+      detailDecision.innerHTML = `<p class="form-note">Astuce : vous pouvez déplacer le composant directement sur le canevas. Sa position est alignée sur une grille de 10 unités.</p>`;
+
+      document.getElementById("nodeForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        if (creating) {
+          let base = String(data.get("title") || "node").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "node";
+          let nodeId = base;
+          let suffix = 2;
+          while (nodeMap[nodeId]) nodeId = `${base}-${suffix++}`;
+          const zone = zones.find(z => z.id === data.get("zone")) || zones[2];
+          const sameZone = nodes.filter(item => item.zone === zone.id).length;
+          n.id = nodeId;
+          n.x = Math.min(zone.x + zone.w - n.w - 18, zone.x + 24 + (sameZone % 2) * (n.w + 18));
+          n.y = Math.min(zone.y + zone.h - n.h - 20, zone.y + 74 + Math.floor(sameZone / 2) * 96);
+          nodes.push(n);
+        }
+        n.title = String(data.get("title") || "Composant").trim();
+        n.sub = String(data.get("sub") || "").trim();
+        n.icon = String(data.get("icon") || "•").trim().toUpperCase();
+        n.boundary = String(data.get("boundary") || "COMPOSANT").trim().toUpperCase();
+        n.zone = String(data.get("zone"));
+        n.description = String(data.get("description") || "").trim();
+        commit(creating ? "Composant ajouté" : "Composant modifié");
+        refreshDiagram();
+        showNode(n.id);
+      });
+      document.getElementById("cancelNodeEdit").addEventListener("click", () => showScenarioDetails(activeScenario));
+      document.getElementById("deleteNode")?.addEventListener("click", () => {
+        if (!confirm(`Supprimer « ${n.title} » et tous ses liens ?`)) return;
+        nodes = nodes.filter(item => item.id !== n.id);
+        Object.values(scenarios).forEach(scenario => { scenario.flows = scenario.flows.filter(flow => flow[0] !== n.id && flow[1] !== n.id); });
+        commit("Composant et liens supprimés");
+        refreshDiagram();
+      });
+    }
+
+    function showLinkEditor(index = null) {
+      const creating = index == null;
+      if (creating && nodes.length < 2) {
+        alert("Ajoutez au moins deux composants avant de créer un lien.");
+        return;
+      }
+      const flow = creating ? [nodes[0]?.id, nodes[1]?.id, "app", false] : scenarios[activeScenario].flows[index];
+      if (!flow) return;
+      selectedNode = null;
+      selectedLink = creating ? null : index;
+      renderFlows(activeScenario);
+      detailKicker.textContent = `Éditeur · ${scenarios[activeScenario].label}`;
+      detailTitle.textContent = creating ? "Ajouter un lien" : "Modifier le lien";
+      detailDescription.textContent = creating ? "Reliez deux composants dans le scénario actif." : `${nodeMap[flow[0]]?.title} → ${nodeMap[flow[1]]?.title}`;
+      detailSectionTitle.textContent = "Propriétés du flux";
+      const nodeOptions = nodes.map(n => [n.id, n.title]);
+      const typeOptions = [["ingress","Utilisateur / entrée"],["app","Applicatif"],["ai","IA / modèle"],["data","Données"],["tool","Outil / action"],["async","Asynchrone"],["human","Humain / contrôle"],["security","Sécurité"]];
+      flowSteps.innerHTML = `<li style="display:block"><form class="edit-form" id="linkForm">
+        <label>Depuis<select name="from">${optionList(nodeOptions, flow[0])}</select></label>
+        <label>Vers<select name="to">${optionList(nodeOptions, flow[1])}</select></label>
+        <label>Type de flux<select name="type">${optionList(typeOptions, flow[2])}</select></label>
+        <label style="display:flex;grid-template-columns:auto 1fr;align-items:center;text-transform:none"><input style="width:17px;height:17px" type="checkbox" name="secondary" ${flow[3] ? "checked" : ""}> Lien secondaire / télémétrie</label>
+        <div class="form-actions">
+          <button class="form-button primary" type="submit">${creating ? "Ajouter" : "Appliquer"}</button>
+          ${creating ? "" : '<button class="form-button" type="button" id="linkUp">Monter</button><button class="form-button" type="button" id="linkDown">Descendre</button><button class="form-button danger" type="button" id="deleteLink">Supprimer</button>'}
+          <button class="form-button" type="button" id="cancelLinkEdit">Annuler</button>
+        </div>
+      </form></li>`;
+      detailDecision.innerHTML = `<p class="form-note">L’ordre des liens détermine leur numéro et le décalage visuel utilisé lorsque plusieurs flux se chevauchent.</p>`;
+
+      document.getElementById("linkForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const updated = [String(data.get("from")), String(data.get("to")), String(data.get("type")), data.get("secondary") === "on"];
+        if (updated[0] === updated[1]) { alert("La source et la destination doivent être différentes."); return; }
+        if (creating) scenarios[activeScenario].flows.push(updated);
+        else scenarios[activeScenario].flows[index] = updated;
+        commit(creating ? "Lien ajouté" : "Lien modifié");
+        selectedLink = creating ? scenarios[activeScenario].flows.length - 1 : index;
+        renderFlows(activeScenario);
+        showLinkEditor(selectedLink);
+      });
+      document.getElementById("cancelLinkEdit").addEventListener("click", () => { selectedLink = null; renderFlows(activeScenario); showScenarioDetails(activeScenario); });
+      document.getElementById("deleteLink")?.addEventListener("click", () => {
+        scenarios[activeScenario].flows.splice(index, 1);
+        selectedLink = null;
+        commit("Lien supprimé");
+        renderFlows(activeScenario);
+        showScenarioDetails(activeScenario);
+      });
+      document.getElementById("linkUp")?.addEventListener("click", () => moveLink(index, -1));
+      document.getElementById("linkDown")?.addEventListener("click", () => moveLink(index, 1));
+    }
+
+    function moveLink(index, direction) {
+      const flows = scenarios[activeScenario].flows;
+      const next = index + direction;
+      if (next < 0 || next >= flows.length) return;
+      [flows[index], flows[next]] = [flows[next], flows[index]];
+      selectedLink = next;
+      commit("Ordre des liens modifié");
+      renderFlows(activeScenario);
+      showLinkEditor(next);
+    }
+
+    function uniqueScenarioId(label) {
+      const base = String(label || "scenario").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "scenario";
+      let id = base, i = 2;
+      while (scenarios[id]) id = `${base}-${i++}`;
+      return id;
+    }
+
+    function showScenarioEditor() {
+      const scenario = scenarios[activeScenario];
+      detailKicker.textContent = "Éditeur · schéma complet";
+      detailTitle.textContent = scenario.label;
+      detailDescription.textContent = "Modifiez la présentation, les étapes et la décision associées à cette vue.";
+      detailSectionTitle.textContent = "Propriétés du scénario";
+      flowSteps.innerHTML = `<li style="display:block"><form class="edit-form" id="scenarioForm">
+        <label>Nom<input name="label" maxlength="28" required value="${htmlEscape(scenario.label)}"></label>
+        <label>Couleur<input name="color" type="color" value="${htmlEscape(scenario.color || "#56d9ff")}"></label>
+        <label>Description<textarea name="description">${htmlEscape(scenario.description || "")}</textarea></label>
+        <label>Étapes — une par ligne<textarea name="steps" style="min-height:145px">${htmlEscape((scenario.steps || []).join("\n"))}</textarea></label>
+        <label>Décision d’architecture<textarea name="decision">${htmlEscape(scenario.decision || "")}</textarea></label>
+        <div class="form-actions">
+          <button class="form-button primary" type="submit">Appliquer</button>
+          <button class="form-button" type="button" id="duplicateScenario">Dupliquer</button>
+          <button class="form-button" type="button" id="newScenario">Nouveau</button>
+          ${activeScenario === "overview" || Object.keys(scenarios).length === 1 ? "" : '<button class="form-button danger" type="button" id="deleteScenario">Supprimer</button>'}
+          <button class="form-button" type="button" id="cancelScenarioEdit">Annuler</button>
+        </div>
+      </form></li>`;
+      detailDecision.innerHTML = `<p class="form-note">Les composants sont communs à toutes les vues. Les liens et les étapes appartiennent au scénario actif.</p>`;
+
+      document.getElementById("scenarioForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        scenario.label = String(data.get("label") || "Scénario").trim();
+        scenario.color = String(data.get("color") || "#56d9ff");
+        scenario.description = String(data.get("description") || "").trim();
+        scenario.steps = String(data.get("steps") || "").split("\n").map(s => s.trim()).filter(Boolean);
+        scenario.decision = String(data.get("decision") || "").trim();
+        commit("Scénario modifié");
+        renderScenarioButtons();
+        selectScenario(activeScenario);
+        showScenarioEditor();
+      });
+      document.getElementById("cancelScenarioEdit").addEventListener("click", () => showScenarioDetails(activeScenario));
+      document.getElementById("duplicateScenario").addEventListener("click", () => {
+        const id = uniqueScenarioId(`${scenario.label}-copie`);
+        scenarios[id] = JSON.parse(JSON.stringify({ ...scenario, label: `${scenario.label} — copie` }));
+        activeScenario = id;
+        commit("Scénario dupliqué");
+        refreshDiagram();
+        showScenarioEditor();
+      });
+      document.getElementById("newScenario").addEventListener("click", () => {
+        const id = uniqueScenarioId("nouveau-scenario");
+        scenarios[id] = { label: "Nouveau scénario", color: "#56d9ff", description: "Décrivez ce cas d’usage.", decision: "Documentez la décision d’architecture.", steps: ["Première étape du parcours."], flows: [] };
+        activeScenario = id;
+        commit("Scénario créé");
+        refreshDiagram();
+        showScenarioEditor();
+      });
+      document.getElementById("deleteScenario")?.addEventListener("click", () => {
+        if (!confirm(`Supprimer le scénario « ${scenario.label} » ?`)) return;
+        delete scenarios[activeScenario];
+        activeScenario = scenarios.overview ? "overview" : Object.keys(scenarios)[0];
+        commit("Scénario supprimé");
+        refreshDiagram();
+      });
+    }
+
+    function showNode(id) {
+      if (editMode) { showNodeEditor(id); return; }
+      selectedNode = id;
+      const n = nodeMap[id];
+      document.querySelectorAll(".node").forEach(g => g.classList.toggle("selected", g.dataset.node === id));
+      detailKicker.textContent = `${zones.find(z => z.id === n.zone)?.title || "Composant"} · ${n.boundary}`;
+      detailTitle.textContent = n.title;
+      detailDescription.textContent = n.sub;
+      detailSectionTitle.textContent = "Rôle dans l’architecture";
+      flowSteps.innerHTML = `<li><span class="step-number">i</span><span class="node-description">${htmlEscape(n.description)}</span></li>`;
+      detailDecision.innerHTML = `<div class="decision-box"><strong>Scénario actuellement affiché</strong><p>${htmlEscape(scenarios[activeScenario].label)} — cliquez de nouveau sur son onglet pour revenir au parcours complet.</p></div>`;
+    }
+
+    function selectScenario(id) {
+      activeScenario = id;
+      selectedNode = null;
+      selectedLink = null;
+      document.querySelectorAll(".scenario-button").forEach(button => button.classList.toggle("active", button.dataset.scenario === id));
+      renderFlows(id);
+      showScenarioDetails(id);
+    }
+
+    function setViewBox() {
+      svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+    }
+
+    function zoom(factor, clientX, clientY) {
+      const rect = svg.getBoundingClientRect();
+      const px = clientX == null ? .5 : (clientX - rect.left) / rect.width;
+      const py = clientY == null ? .5 : (clientY - rect.top) / rect.height;
+      const newW = Math.min(2600, Math.max(720, viewBox.w * factor));
+      const newH = newW * 1120 / 1900;
+      viewBox.x += (viewBox.w - newW) * px;
+      viewBox.y += (viewBox.h - newH) * py;
+      viewBox.w = newW; viewBox.h = newH;
+      setViewBox();
+    }
+
+    document.getElementById("zoomIn").addEventListener("click", () => zoom(.82));
+    document.getElementById("zoomOut").addEventListener("click", () => zoom(1.22));
+    document.getElementById("zoomReset").addEventListener("click", () => {
+      viewBox = { x: 0, y: 0, w: 1900, h: 1120 }; setViewBox();
+    });
+
+    svg.addEventListener("wheel", event => {
+      event.preventDefault();
+      zoom(event.deltaY > 0 ? 1.12 : .89, event.clientX, event.clientY);
+    }, { passive: false });
+
+    svg.addEventListener("pointerdown", event => {
+      if (event.target.closest?.(".node")) return;
+      if (editMode && event.target.closest?.(".flow-path, .flow-hit")) return;
+      svg.setPointerCapture(event.pointerId);
+      dragStart = { x: event.clientX, y: event.clientY, vx: viewBox.x, vy: viewBox.y };
+      svg.classList.add("dragging");
+    });
+
+    svg.addEventListener("pointermove", event => {
+      if (!dragStart) return;
+      const rect = svg.getBoundingClientRect();
+      viewBox.x = dragStart.vx - (event.clientX - dragStart.x) * viewBox.w / rect.width;
+      viewBox.y = dragStart.vy - (event.clientY - dragStart.y) * viewBox.h / rect.height;
+      setViewBox();
+    });
+
+    function stopDrag() { dragStart = null; svg.classList.remove("dragging"); }
+    svg.addEventListener("pointerup", stopDrag);
+    svg.addEventListener("pointercancel", stopDrag);
+    svg.addEventListener("click", event => {
+      if (event.target === svg || event.target.closest?.("#baseLayer") || event.target.closest?.("#zoneLayer")) {
+        selectedNode = null; showScenarioDetails(activeScenario);
+        document.querySelectorAll(".node").forEach(g => g.classList.remove("selected"));
+      }
+    });
+
+    const pauseButton = document.getElementById("pauseAnimation");
+    pauseButton.addEventListener("click", () => {
+      animationPaused = !animationPaused;
+      animationPaused ? svg.pauseAnimations() : svg.unpauseAnimations();
+      pauseButton.textContent = animationPaused ? "Lecture" : "Pause";
+      pauseButton.classList.toggle("active", animationPaused);
+    });
+
+    const autoButton = document.getElementById("autoPlay");
+    autoButton.addEventListener("click", () => {
+      if (autoTimer) {
+        clearInterval(autoTimer); autoTimer = null; autoButton.classList.remove("active");
+      } else {
+        const ids = Object.keys(scenarios).filter(id => id !== "overview");
+        let index = Math.max(0, ids.indexOf(activeScenario));
+        autoTimer = setInterval(() => { index = (index + 1) % ids.length; selectScenario(ids[index]); }, 7000);
+        autoButton.classList.add("active");
+      }
+    });
+
+    const editButton = document.getElementById("editMode");
+    function setEditMode(enabled) {
+      editMode = enabled;
+      document.body.classList.toggle("editor-on", editMode);
+      editorStrip.classList.toggle("visible", editMode);
+      editButton.classList.toggle("active", editMode);
+      editButton.textContent = editMode ? "Terminer" : "Éditer";
+      if (editMode && autoTimer) {
+        clearInterval(autoTimer); autoTimer = null; autoButton.classList.remove("active");
+      }
+      selectedNode = null;
+      selectedLink = null;
+      renderFlows(activeScenario);
+      editMode ? showScenarioEditor() : showScenarioDetails(activeScenario);
+    }
+
+    editButton.addEventListener("click", () => setEditMode(!editMode));
+    document.getElementById("addNode").addEventListener("click", () => showNodeEditor());
+    document.getElementById("addLink").addEventListener("click", () => showLinkEditor());
+    document.getElementById("editScenario").addEventListener("click", showScenarioEditor);
+
+    document.getElementById("undoEdit").addEventListener("click", () => {
+      if (historyIndex <= 0) return;
+      historyIndex--;
+      restoreSnapshot(history[historyIndex]);
+    });
+
+    document.getElementById("redoEdit").addEventListener("click", () => {
+      if (historyIndex >= history.length - 1) return;
+      historyIndex++;
+      restoreSnapshot(history[historyIndex]);
+    });
+
+    document.addEventListener("keydown", event => {
+      if (!editMode || !(event.ctrlKey || event.metaKey)) return;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+      if (event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault(); document.getElementById("undoEdit").click();
+      } else if ((event.key.toLowerCase() === "z" && event.shiftKey) || event.key.toLowerCase() === "y") {
+        event.preventDefault(); document.getElementById("redoEdit").click();
+      }
+    });
+
+    document.getElementById("exportJson").addEventListener("click", () => {
+      const payload = { schemaVersion: 1, exportedAt: new Date().toISOString(), nodes, scenarios };
+      downloadFile("architecture-foundry-aro.json", JSON.stringify(payload, null, 2), "application/json");
+      saveStatus.textContent = "JSON exporté";
+    });
+
+    document.getElementById("exportSvg").addEventListener("click", () => {
+      const clone = svg.cloneNode(true);
+      clone.setAttribute("xmlns", NS);
+      clone.setAttribute("width", "1900");
+      clone.setAttribute("height", "1120");
+      clone.setAttribute("viewBox", "0 0 1900 1120");
+      clone.querySelectorAll("animateMotion, .flow-particle").forEach(item => item.remove());
+      const style = document.createElementNS(NS, "style");
+      style.textContent = document.querySelector("style").textContent;
+      clone.insertBefore(style, clone.firstChild);
+      downloadFile(`architecture-${activeScenario}.svg`, new XMLSerializer().serializeToString(clone), "image/svg+xml");
+      saveStatus.textContent = "SVG exporté";
+    });
+
+    const importFile = document.getElementById("importFile");
+    document.getElementById("importJson").addEventListener("click", () => importFile.click());
+    importFile.addEventListener("change", () => {
+      const file = importFile.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const state = JSON.parse(reader.result);
+          validateState(state);
+          nodes = state.nodes;
+          scenarios = state.scenarios;
+          activeScenario = scenarios.overview ? "overview" : Object.keys(scenarios)[0];
+          commit("Architecture importée");
+          refreshDiagram();
+          showScenarioEditor();
+        } catch (error) {
+          alert(`Import impossible : ${error.message}`);
+        } finally {
+          importFile.value = "";
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById("resetEditor").addEventListener("click", () => {
+      if (!confirm("Revenir au diagramme d’origine ? Vous pourrez encore utiliser Annuler pendant cette session.")) return;
+      nodes = JSON.parse(JSON.stringify(defaultState.nodes));
+      scenarios = JSON.parse(JSON.stringify(defaultState.scenarios));
+      activeScenario = "rag";
+      commit("Diagramme réinitialisé");
+      refreshDiagram();
+      showScenarioEditor();
+    });
+
+    renderZones();
+    renderBaseLinks();
+    renderNodes();
+    renderScenarioButtons();
+    selectScenario(activeScenario);
+    updateHistoryButtons();
+  </script>
+</body>
+</html>
