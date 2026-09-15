@@ -155,6 +155,18 @@
     .edit-action:disabled { cursor: not-allowed; opacity: .35; }
     .edit-action.danger { color: #ff9cac; border-color: rgba(255, 113, 133, .28); }
 
+    .project-select {
+      flex: 0 0 190px;
+      height: 31px;
+      padding: 0 28px 0 9px;
+      border: 1px solid rgba(255, 173, 92, .3);
+      border-radius: 9px;
+      outline: none;
+      color: #fff0df;
+      background: #1d2530;
+      font: 700 11px Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
     .save-status {
       flex: 0 0 auto;
       padding-left: 8px;
@@ -456,6 +468,8 @@
     .zone-frame.app-zone { fill: rgba(32, 71, 140, .095); stroke: rgba(84, 140, 255, .28); }
     .zone-frame.ai-zone { fill: rgba(112, 64, 170, .095); stroke: rgba(180, 129, 255, .29); }
     .zone-frame.data-zone { fill: rgba(36, 116, 79, .08); stroke: rgba(101, 230, 167, .24); }
+    body.editor-on .zone-frame { stroke-dasharray: 7 5; cursor: pointer; }
+    body.editor-on .zone-frame:hover { stroke-width: 2.4; }
 
     .zone-title {
       fill: #d8e7f3;
@@ -591,24 +605,23 @@
   <main class="app-shell">
     <header class="topbar">
       <div class="brand">
-        <p class="eyebrow">Architecture de référence · Plateforme IA d’entreprise</p>
-        <h1>Microsoft Foundry + Azure Red Hat OpenShift</h1>
-        <p class="subtitle">
+        <p class="eyebrow" id="projectEyebrow">Architecture de référence · Plateforme IA d’entreprise</p>
+        <h1 id="projectTitle">Microsoft Foundry + Azure Red Hat OpenShift</h1>
+        <p class="subtitle" id="projectSubtitle">
           Une plateforme IA managée dans Foundry, des applications et outils métier sur ARO,
           et des données isolées par workload. Sélectionnez un scénario pour suivre son flux de bout en bout.
         </p>
       </div>
-      <div class="principle" aria-label="Principe de placement">
-        <span class="app">ARO = applications</span>
-        <span class="ai">Foundry = capacités IA</span>
-        <span class="data">Workload = données</span>
-      </div>
+      <div class="principle" id="projectPrinciples" aria-label="Principes de placement"></div>
     </header>
 
     <nav class="scenario-strip" id="scenarioStrip" aria-label="Cas d’usage"></nav>
 
     <div class="editor-strip" id="editorStrip" aria-label="Outils d’édition">
-      <span class="edit-hint">Mode édition · glissez un composant ou cliquez un lien pour le modifier</span>
+      <select class="project-select" id="projectSelect" title="Projet actif" aria-label="Projet actif"></select>
+      <button class="edit-action" id="editProject">Projet</button>
+      <span class="edit-hint">Glissez un composant ou cliquez un lien pour le modifier</span>
+      <button class="edit-action" id="addZone">+ Zone</button>
       <button class="edit-action" id="addNode">+ Composant</button>
       <button class="edit-action" id="addLink">+ Lien</button>
       <button class="edit-action" id="editScenario">Scénario</button>
@@ -648,7 +661,7 @@
               <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
           </defs>
-          <rect width="1900" height="1120" fill="url(#grid)" />
+          <rect id="canvasBackground" width="1900" height="1120" fill="url(#grid)" />
           <g id="zoneLayer"></g>
           <g id="baseLayer"></g>
           <g id="flowLayer"></g>
@@ -698,12 +711,22 @@
       security: "#ff7185"
     };
 
-    const zones = [
-      { id: "channels", x: 28, y: 66, w: 226, h: 842, title: "Canaux & producteurs", subtitle: "Utilisateurs, documents, événements" },
-      { id: "edge", x: 278, y: 66, w: 220, h: 842, title: "Accès & confiance", subtitle: "Périmètre d’entrée et identité" },
-      { id: "aro", x: 522, y: 66, w: 504, h: 842, title: "Azure Red Hat OpenShift", subtitle: "Plan applicatif · logique métier", cls: "app-zone" },
-      { id: "foundry", x: 1050, y: 66, w: 382, h: 842, title: "Microsoft Foundry", subtitle: "Plan IA managé · modèles et agents", cls: "ai-zone" },
-      { id: "data", x: 1456, y: 66, w: 416, h: 842, title: "Données & SI du workload", subtitle: "État, connaissance et systèmes métier", cls: "data-zone" }
+    let projectMeta = {
+      name: "Architecture Foundry + ARO",
+      eyebrow: "Architecture de référence · Plateforme IA d’entreprise",
+      title: "Microsoft Foundry + Azure Red Hat OpenShift",
+      subtitle: "Une plateforme IA managée dans Foundry, des applications et outils métier sur ARO, et des données isolées par workload. Sélectionnez un scénario pour suivre son flux de bout en bout.",
+      principles: ["ARO = applications", "Foundry = capacités IA", "Workload = données"]
+    };
+
+    let canvas = { width: 1900, height: 1120, foundationHeight: 158 };
+
+    let zones = [
+      { id: "channels", x: 28, y: 66, w: 226, h: 842, title: "Canaux & producteurs", subtitle: "Utilisateurs, documents, événements", color: "#5e7890" },
+      { id: "edge", x: 278, y: 66, w: 220, h: 842, title: "Accès & confiance", subtitle: "Périmètre d’entrée et identité", color: "#5e7890" },
+      { id: "aro", x: 522, y: 66, w: 504, h: 842, title: "Azure Red Hat OpenShift", subtitle: "Plan applicatif · logique métier", color: "#548cff" },
+      { id: "foundry", x: 1050, y: 66, w: 382, h: 842, title: "Microsoft Foundry", subtitle: "Plan IA managé · modèles et agents", color: "#b481ff" },
+      { id: "data", x: 1456, y: 66, w: 416, h: 842, title: "Données & SI du workload", subtitle: "État, connaissance et systèmes métier", color: "#65e6a7" }
     ];
 
     let nodes = [
@@ -971,22 +994,50 @@
       }
     };
 
-    const foundations = [
+    let foundations = [
       "Hub / vWAN / Firewall", "Private Link & DNS privé", "Workload Identity", "Key Vault",
       "Azure Policy / Defender", "Purview & classification", "Monitor / App Insights", "GitOps / IaC / FinOps"
     ];
 
-    const STORAGE_KEY = "foundry-aro-architecture-editor-v1";
-    const defaultState = JSON.parse(JSON.stringify({ nodes, scenarios }));
+    const LEGACY_STORAGE_KEY = "foundry-aro-architecture-editor-v1";
+    const LIBRARY_KEY = "architecture-editor-projects-v2";
+    const copy = value => JSON.parse(JSON.stringify(value));
+    const defaultProject = copy({
+      id: "foundry-aro-reference",
+      meta: projectMeta,
+      canvas,
+      zones,
+      foundations,
+      nodes,
+      scenarios,
+      activeScenario: "rag"
+    });
+
+    let projects = { [defaultProject.id]: copy(defaultProject) };
+    let activeProjectId = defaultProject.id;
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (saved?.nodes?.length && saved?.scenarios && Object.keys(saved.scenarios).length) {
-        nodes = saved.nodes;
-        scenarios = saved.scenarios;
+      const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "null");
+      if (library?.projects && Object.keys(library.projects).length) {
+        projects = library.projects;
+        activeProjectId = projects[library.activeProjectId] ? library.activeProjectId : Object.keys(projects)[0];
+      } else {
+        const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
+        if (legacy?.nodes?.length && legacy?.scenarios && Object.keys(legacy.scenarios).length) {
+          projects[defaultProject.id].nodes = legacy.nodes;
+          projects[defaultProject.id].scenarios = legacy.scenarios;
+        }
       }
     } catch (error) {
       console.warn("État local ignoré :", error);
     }
+
+    const loadedProject = projects[activeProjectId];
+    projectMeta = copy(loadedProject.meta || defaultProject.meta);
+    canvas = copy(loadedProject.canvas || defaultProject.canvas);
+    zones = copy(loadedProject.zones || defaultProject.zones);
+    foundations = copy(loadedProject.foundations || defaultProject.foundations);
+    nodes = copy(loadedProject.nodes || []);
+    scenarios = copy(loadedProject.scenarios || defaultProject.scenarios);
 
     let nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
     const svg = document.getElementById("architecture");
@@ -1004,18 +1055,19 @@
     const strip = document.getElementById("scenarioStrip");
     const editorStrip = document.getElementById("editorStrip");
     const saveStatus = document.getElementById("saveStatus");
+    const projectSelect = document.getElementById("projectSelect");
 
-    let activeScenario = scenarios.rag ? "rag" : Object.keys(scenarios)[0];
+    let activeScenario = scenarios[loadedProject.activeScenario] ? loadedProject.activeScenario : (scenarios.rag ? "rag" : Object.keys(scenarios)[0]);
     let selectedNode = null;
     let selectedLink = null;
     let editMode = false;
     let animationPaused = false;
     let autoTimer = null;
-    let viewBox = { x: 0, y: 0, w: 1900, h: 1120 };
+    let viewBox = { x: 0, y: 0, w: canvas.width, h: canvas.height };
     let dragStart = null;
     let nodeDrag = null;
     let suppressNodeClick = false;
-    let history = [JSON.stringify({ nodes, scenarios })];
+    let history = [JSON.stringify({ meta: projectMeta, canvas, zones, foundations, nodes, scenarios })];
     let historyIndex = 0;
 
     function el(name, attrs = {}, parent) {
@@ -1033,13 +1085,18 @@
     }
 
     function snapshot() {
-      return JSON.stringify({ nodes, scenarios });
+      return JSON.stringify({ meta: projectMeta, canvas, zones, foundations, nodes, scenarios, activeScenario });
+    }
+
+    function currentProjectData() {
+      return { id: activeProjectId, meta: projectMeta, canvas, zones, foundations, nodes, scenarios, activeScenario };
     }
 
     function saveLocal(message = "Sauvegardé localement") {
       let saved = true;
       try {
-        localStorage.setItem(STORAGE_KEY, snapshot());
+        projects[activeProjectId] = copy(currentProjectData());
+        localStorage.setItem(LIBRARY_KEY, JSON.stringify({ activeProjectId, projects }));
         saveStatus.textContent = message;
         saveStatus.style.color = "#84dcb1";
       } catch (error) {
@@ -1070,9 +1127,14 @@
 
     function restoreSnapshot(raw) {
       const state = JSON.parse(raw);
+      projectMeta = state.meta;
+      canvas = state.canvas;
+      zones = state.zones;
+      foundations = state.foundations;
       nodes = state.nodes;
       scenarios = state.scenarios;
-      if (!scenarios[activeScenario]) activeScenario = Object.keys(scenarios)[0];
+      activeScenario = scenarios[state.activeScenario] ? state.activeScenario : Object.keys(scenarios)[0];
+      viewBox = { x: 0, y: 0, w: canvas.width, h: canvas.height };
       selectedNode = null;
       selectedLink = null;
       refreshDiagram();
@@ -1081,12 +1143,25 @@
     }
 
     function validateState(state) {
-      if (!state || !Array.isArray(state.nodes) || !state.nodes.length || !state.scenarios || Array.isArray(state.scenarios)) {
+      if (!state || !Array.isArray(state.nodes) || !state.scenarios || Array.isArray(state.scenarios) || !Object.keys(state.scenarios).length) {
         throw new Error("Structure JSON invalide");
+      }
+      if (!state.meta || !state.canvas || !Array.isArray(state.zones) || !state.zones.length || !Array.isArray(state.foundations)) {
+        throw new Error("Projet incomplet : métadonnées, canevas, zones ou fondations absents");
+      }
+      if (![state.canvas.width, state.canvas.height, state.canvas.foundationHeight].every(value => Number.isFinite(value))) {
+        throw new Error("Dimensions de canevas invalides");
+      }
+      const zoneIds = new Set();
+      for (const zone of state.zones) {
+        if (!zone.id || zoneIds.has(zone.id) || ![zone.x, zone.y, zone.w, zone.h].every(value => Number.isFinite(value))) {
+          throw new Error("Zone invalide ou identifiant de zone dupliqué");
+        }
+        zoneIds.add(zone.id);
       }
       const ids = new Set();
       for (const n of state.nodes) {
-        if (!n.id || ids.has(n.id) || !Number.isFinite(Number(n.x)) || !Number.isFinite(Number(n.y))) {
+        if (!n.id || ids.has(n.id) || ![n.x, n.y, n.w, n.h].every(value => Number.isFinite(value))) {
           throw new Error("Nœud invalide ou identifiant dupliqué");
         }
         ids.add(n.id);
@@ -1118,34 +1193,81 @@
 
     function refreshDiagram() {
       rebuildNodeMap();
+      zoneLayer.replaceChildren();
       baseLayer.replaceChildren();
       nodeLayer.replaceChildren();
+      svg.setAttribute("viewBox", `0 0 ${canvas.width} ${canvas.height}`);
+      document.getElementById("canvasBackground").setAttribute("width", canvas.width);
+      document.getElementById("canvasBackground").setAttribute("height", canvas.height);
+      renderProjectMeta();
+      renderZones();
       renderBaseLinks();
       renderNodes();
       renderScenarioButtons();
+      renderProjectSelect();
       renderFlows(activeScenario);
       showScenarioDetails(activeScenario);
     }
 
+    function renderProjectMeta() {
+      document.getElementById("projectEyebrow").textContent = projectMeta.eyebrow || "Éditeur d’architecture";
+      document.getElementById("projectTitle").textContent = projectMeta.title || projectMeta.name || "Architecture sans titre";
+      document.getElementById("projectSubtitle").textContent = projectMeta.subtitle || "";
+      document.title = `${projectMeta.title || projectMeta.name || "Architecture"} — Éditeur`;
+      const principles = document.getElementById("projectPrinciples");
+      principles.replaceChildren();
+      (projectMeta.principles || []).forEach((label, index) => {
+        const span = document.createElement("span");
+        span.className = ["app", "ai", "data"][index % 3];
+        span.textContent = label;
+        principles.appendChild(span);
+      });
+      principles.style.display = projectMeta.principles?.length ? "grid" : "none";
+      principles.style.gridTemplateColumns = `repeat(${Math.min(3, Math.max(1, projectMeta.principles?.length || 1))}, auto)`;
+    }
+
+    function renderProjectSelect() {
+      projectSelect.replaceChildren();
+      Object.entries(projects).forEach(([id, project]) => {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = project.meta?.name || project.meta?.title || id;
+        option.selected = id === activeProjectId;
+        projectSelect.appendChild(option);
+      });
+    }
+
     function renderZones() {
       zones.forEach(z => {
-        const g = el("g", {}, zoneLayer);
-        el("rect", { x: z.x, y: z.y, width: z.w, height: z.h, class: `zone-frame ${z.cls || ""}` }, g);
+        const g = el("g", { class: "zone-group", "data-zone": z.id }, zoneLayer);
+        const color = z.color || "#5e7890";
+        el("rect", { x: z.x, y: z.y, width: z.w, height: z.h, class: "zone-frame", style: `fill:${color}14;stroke:${color}66` }, g);
         el("text", { x: z.x + 18, y: z.y + 28, class: "zone-title", text: z.title }, g);
         el("text", { x: z.x + 18, y: z.y + 45, class: "zone-subtitle", text: z.subtitle }, g);
+        g.addEventListener("click", event => {
+          if (!editMode || event.target.closest?.(".node")) return;
+          event.stopPropagation();
+          showZoneEditor(z.id);
+        });
       });
 
-      el("rect", { x: 28, y: 930, width: 1844, height: 158, class: "network-band" }, zoneLayer);
-      el("text", { x: 48, y: 954, class: "network-label", text: "FONDATIONS TRANSVERSES · SÉCURITÉ · CONNECTIVITÉ · OPÉRATIONS" }, zoneLayer);
-      el("rect", { x: 46, y: 970, width: 1808, height: 96, class: "foundation-shell" }, zoneLayer);
-      el("text", { x: 68, y: 1000, class: "foundation-title", text: "Socle de plateforme" }, zoneLayer);
+      const bandY = canvas.height - canvas.foundationHeight - 32;
+      el("rect", { x: 28, y: bandY, width: canvas.width - 56, height: canvas.foundationHeight, class: "network-band" }, zoneLayer);
+      el("text", { x: 48, y: bandY + 24, class: "network-label", text: "FONDATIONS TRANSVERSES · SÉCURITÉ · CONNECTIVITÉ · OPÉRATIONS" }, zoneLayer);
+      el("rect", { x: 46, y: bandY + 40, width: canvas.width - 92, height: 96, class: "foundation-shell" }, zoneLayer);
+      el("text", { x: 68, y: bandY + 70, class: "foundation-title", text: "Socle de plateforme" }, zoneLayer);
 
+      const count = Math.max(1, foundations.length);
+      const startX = 210;
+      const gap = 12;
+      const available = canvas.width - startX - 64;
+      const pillW = Math.max(90, (available - gap * (count - 1)) / count);
       foundations.forEach((label, i) => {
-        const x = 210 + i * 199;
-        el("rect", { x, y: 986, width: 181, height: 48, class: "foundation-pill" }, zoneLayer);
-        el("text", { x: x + 90.5, y: 1015, class: "foundation-label", text: label }, zoneLayer);
+        const x = startX + i * (pillW + gap);
+        el("rect", { x, y: bandY + 56, width: pillW, height: 48, class: "foundation-pill" }, zoneLayer);
+        el("text", { x: x + pillW / 2, y: bandY + 85, class: "foundation-label", text: label }, zoneLayer);
       });
-      el("text", { x: 210, y: 1051, class: "zone-subtitle", text: "Appliqué à tous les scénarios : moindre privilège · réseau privé · traçabilité · séparation dev/test/prod · budgets et SLO" }, zoneLayer);
+      el("text", { x: 210, y: bandY + 121, class: "zone-subtitle", text: "Appliqué à tous les scénarios : moindre privilège · réseau privé · traçabilité · séparation dev/test/prod · budgets et SLO" }, zoneLayer);
     }
 
     function clientToSvg(clientX, clientY) {
@@ -1163,8 +1285,8 @@
       const point = clientToSvg(event.clientX, event.clientY);
       const node = nodeMap[drag.id];
       const snap = value => Math.round(value / 10) * 10;
-      node.x = Math.max(30, Math.min(1870 - node.w, snap(drag.nodeX + point.x - drag.startX)));
-      node.y = Math.max(72, Math.min(900 - node.h, snap(drag.nodeY + point.y - drag.startY)));
+      node.x = Math.max(20, Math.min(canvas.width - 20 - node.w, snap(drag.nodeX + point.x - drag.startX)));
+      node.y = Math.max(20, Math.min(canvas.height - canvas.foundationHeight - 60 - node.h, snap(drag.nodeY + point.y - drag.startY)));
       const cx = node.x + node.w / 2;
       const cy = node.y + node.h / 2;
       const zone = zones.find(z => cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h);
@@ -1242,12 +1364,7 @@
     }
 
     function renderBaseLinks() {
-      const links = [
-        ["waf", "aroIngress"], ["entra", "appApi"], ["aroIngress", "appApi"], ["appApi", "apim"],
-        ["apim", "models"], ["apim", "cognitive"], ["rag", "search"], ["ingestion", "blob"],
-        ["ingestion", "embedding"], ["customAgent", "state"], ["agentService", "mcp"], ["mcp", "businessApis"],
-        ["workers", "eventStore"], ["otel", "evaluation"], ["policyApi", "audit"]
-      ];
+      const links = scenarios.overview?.flows || scenarios[Object.keys(scenarios)[0]]?.flows || [];
       links.filter(link => nodeMap[link[0]] && nodeMap[link[1]])
         .forEach((link, i) => el("path", { d: route(link[0], link[1], i), class: "base-link" }, baseLayer));
     }
@@ -1353,7 +1470,7 @@
     function showNodeEditor(id = null) {
       const creating = id == null;
       const n = creating ? {
-        id: "", zone: "aro", x: 680, y: 820, w: 206, h: 74, icon: "NEW",
+        id: "", zone: zones[0]?.id || "default", x: 80, y: 140, w: 206, h: 74, icon: "NEW",
         title: "Nouveau composant", sub: "Description courte", boundary: "APPLICATION", description: "Rôle du composant dans l’architecture."
       } : nodeMap[id];
       selectedNode = creating ? null : id;
@@ -1372,6 +1489,12 @@
           <label>Catégorie<input name="boundary" maxlength="18" value="${htmlEscape(n.boundary)}"></label>
         </div>
         <label>Zone<select name="zone">${optionList(zoneOptions, n.zone)}</select></label>
+        <div class="field-grid">
+          <label>Position X<input name="x" type="number" min="0" step="10" value="${Number(n.x)}"></label>
+          <label>Position Y<input name="y" type="number" min="0" step="10" value="${Number(n.y)}"></label>
+          <label>Largeur<input name="w" type="number" min="120" max="600" step="10" value="${Number(n.w)}"></label>
+          <label>Hauteur<input name="h" type="number" min="60" max="300" step="10" value="${Number(n.h)}"></label>
+        </div>
         <label>Description<textarea name="description">${htmlEscape(n.description)}</textarea></label>
         <div class="form-actions">
           <button class="form-button primary" type="submit">${creating ? "Ajouter" : "Appliquer"}</button>
@@ -1389,11 +1512,7 @@
           let nodeId = base;
           let suffix = 2;
           while (nodeMap[nodeId]) nodeId = `${base}-${suffix++}`;
-          const zone = zones.find(z => z.id === data.get("zone")) || zones[2];
-          const sameZone = nodes.filter(item => item.zone === zone.id).length;
           n.id = nodeId;
-          n.x = Math.min(zone.x + zone.w - n.w - 18, zone.x + 24 + (sameZone % 2) * (n.w + 18));
-          n.y = Math.min(zone.y + zone.h - n.h - 20, zone.y + 74 + Math.floor(sameZone / 2) * 96);
           nodes.push(n);
         }
         n.title = String(data.get("title") || "Composant").trim();
@@ -1401,6 +1520,10 @@
         n.icon = String(data.get("icon") || "•").trim().toUpperCase();
         n.boundary = String(data.get("boundary") || "COMPOSANT").trim().toUpperCase();
         n.zone = String(data.get("zone"));
+        n.x = Math.max(0, Number(data.get("x")) || 0);
+        n.y = Math.max(0, Number(data.get("y")) || 0);
+        n.w = Math.max(120, Number(data.get("w")) || 206);
+        n.h = Math.max(60, Number(data.get("h")) || 74);
         n.description = String(data.get("description") || "").trim();
         commit(creating ? "Composant ajouté" : "Composant modifié");
         refreshDiagram();
@@ -1413,6 +1536,207 @@
         Object.values(scenarios).forEach(scenario => { scenario.flows = scenario.flows.filter(flow => flow[0] !== n.id && flow[1] !== n.id); });
         commit("Composant et liens supprimés");
         refreshDiagram();
+      });
+    }
+
+    function uniqueZoneId(label) {
+      const base = String(label || "zone").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "zone";
+      let id = base, i = 2;
+      while (zones.some(zone => zone.id === id)) id = `${base}-${i++}`;
+      return id;
+    }
+
+    function showZoneEditor(id = null) {
+      const creating = id == null;
+      const z = creating ? { id: "", x: 50, y: 70, w: 420, h: Math.max(300, canvas.height - canvas.foundationHeight - 150), title: "Nouvelle zone", subtitle: "Périmètre logique", color: "#548cff" } : zones.find(zone => zone.id === id);
+      if (!z) return;
+      selectedNode = null;
+      selectedLink = null;
+      renderFlows(activeScenario);
+      detailKicker.textContent = creating ? "Éditeur · nouvelle zone" : "Éditeur · zone";
+      detailTitle.textContent = creating ? "Ajouter une zone" : z.title;
+      detailDescription.textContent = "Une zone représente un périmètre applicatif, réseau, organisationnel ou de responsabilité.";
+      detailSectionTitle.textContent = "Propriétés de la zone";
+      flowSteps.innerHTML = `<li style="display:block"><form class="edit-form" id="zoneForm">
+        <label>Nom<input name="title" maxlength="36" required value="${htmlEscape(z.title)}"></label>
+        <label>Sous-titre<input name="subtitle" maxlength="52" value="${htmlEscape(z.subtitle || "")}"></label>
+        <label>Couleur<input name="color" type="color" value="${htmlEscape(z.color || "#548cff")}"></label>
+        <div class="field-grid">
+          <label>Position X<input name="x" type="number" min="0" step="10" value="${Number(z.x)}"></label>
+          <label>Position Y<input name="y" type="number" min="0" step="10" value="${Number(z.y)}"></label>
+          <label>Largeur<input name="w" type="number" min="180" step="10" value="${Number(z.w)}"></label>
+          <label>Hauteur<input name="h" type="number" min="160" step="10" value="${Number(z.h)}"></label>
+        </div>
+        <div class="form-actions">
+          <button class="form-button primary" type="submit">${creating ? "Ajouter" : "Appliquer"}</button>
+          ${creating ? "" : '<button class="form-button danger" type="button" id="deleteZone">Supprimer</button>'}
+          <button class="form-button" type="button" id="cancelZoneEdit">Annuler</button>
+        </div>
+      </form></li>`;
+      const count = nodes.filter(node => node.zone === z.id).length;
+      detailDecision.innerHTML = `<div class="decision-box"><strong>${count} composant${count > 1 ? "s" : ""} rattaché${count > 1 ? "s" : ""}</strong><p>Le redimensionnement d’une zone ne déplace pas automatiquement ses composants.</p></div>`;
+
+      document.getElementById("zoneForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        if (creating) {
+          z.id = uniqueZoneId(data.get("title"));
+          zones.push(z);
+        }
+        z.title = String(data.get("title") || "Zone").trim();
+        z.subtitle = String(data.get("subtitle") || "").trim();
+        z.color = String(data.get("color") || "#548cff");
+        z.x = Math.max(0, Number(data.get("x")) || 0);
+        z.y = Math.max(0, Number(data.get("y")) || 0);
+        z.w = Math.max(180, Number(data.get("w")) || 420);
+        z.h = Math.max(160, Number(data.get("h")) || 500);
+        commit(creating ? "Zone ajoutée" : "Zone modifiée");
+        refreshDiagram();
+        showZoneEditor(z.id);
+      });
+      document.getElementById("cancelZoneEdit").addEventListener("click", () => showScenarioDetails(activeScenario));
+      document.getElementById("deleteZone")?.addEventListener("click", () => {
+        if (zones.length <= 1) { alert("Un projet doit conserver au moins une zone."); return; }
+        if (!confirm(`Supprimer la zone « ${z.title} » ? Ses composants seront conservés.`)) return;
+        zones = zones.filter(zone => zone.id !== z.id);
+        const fallback = zones[0].id;
+        nodes.filter(node => node.zone === z.id).forEach(node => { node.zone = fallback; });
+        commit("Zone supprimée");
+        refreshDiagram();
+      });
+    }
+
+    function uniqueProjectId(label) {
+      const base = String(label || "projet").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "projet";
+      let id = base, i = 2;
+      while (projects[id]) id = `${base}-${i++}`;
+      return id;
+    }
+
+    function applyProject(project) {
+      projectMeta = copy(project.meta || defaultProject.meta);
+      canvas = copy(project.canvas || defaultProject.canvas);
+      zones = copy(project.zones || defaultProject.zones);
+      foundations = copy(project.foundations || []);
+      nodes = copy(project.nodes || []);
+      scenarios = copy(project.scenarios || { overview: copy(defaultProject.scenarios.overview) });
+      activeScenario = scenarios[project.activeScenario] ? project.activeScenario : (scenarios.overview ? "overview" : Object.keys(scenarios)[0]);
+      viewBox = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+      history = [snapshot()];
+      historyIndex = 0;
+      selectedNode = null;
+      selectedLink = null;
+    }
+
+    function switchProject(id) {
+      if (!projects[id] || id === activeProjectId) return;
+      projects[activeProjectId] = copy(currentProjectData());
+      activeProjectId = id;
+      applyProject(projects[id]);
+      saveLocal("Projet chargé");
+      refreshDiagram();
+      showProjectEditor();
+      updateHistoryButtons();
+    }
+
+    function createProject(template, suggestedName) {
+      projects[activeProjectId] = copy(currentProjectData());
+      const project = copy(template);
+      project.meta.name = suggestedName;
+      project.meta.title = suggestedName;
+      const id = uniqueProjectId(suggestedName);
+      project.id = id;
+      projects[id] = project;
+      activeProjectId = id;
+      applyProject(project);
+      saveLocal("Projet créé");
+      refreshDiagram();
+      showProjectEditor();
+    }
+
+    function blankProject() {
+      return {
+        id: "",
+        meta: {
+          name: "Nouvelle architecture",
+          eyebrow: "Éditeur d’architecture réutilisable",
+          title: "Nouvelle architecture",
+          subtitle: "Décrivez l’objectif, le périmètre et les principaux choix de cette architecture.",
+          principles: ["Principe 1", "Principe 2", "Principe 3"]
+        },
+        canvas: { width: 1600, height: 960, foundationHeight: 150 },
+        zones: [{ id: "zone-1", x: 40, y: 70, w: 1520, h: 690, title: "Zone 1", subtitle: "Double-cliquez ou utilisez Zone pour la modifier", color: "#548cff" }],
+        foundations: ["Identité", "Réseau", "Sécurité", "Observabilité"],
+        nodes: [],
+        scenarios: {
+          overview: {
+            label: "Vue globale", color: "#56d9ff",
+            description: "Vue globale de l’architecture.",
+            decision: "Documentez ici la principale décision d’architecture.",
+            steps: ["Ajoutez des composants et reliez-les pour construire le parcours."], flows: []
+          }
+        },
+        activeScenario: "overview"
+      };
+    }
+
+    function showProjectEditor() {
+      detailKicker.textContent = "Éditeur · projet réutilisable";
+      detailTitle.textContent = projectMeta.name;
+      detailDescription.textContent = "Le projet regroupe son canevas, ses zones, ses composants, ses scénarios et ses flux.";
+      detailSectionTitle.textContent = "Configuration du projet";
+      flowSteps.innerHTML = `<li style="display:block"><form class="edit-form" id="projectForm">
+        <label>Nom dans la bibliothèque<input name="name" maxlength="48" required value="${htmlEscape(projectMeta.name || "")}"></label>
+        <label>Titre principal<input name="title" maxlength="72" required value="${htmlEscape(projectMeta.title || "")}"></label>
+        <label>Sur-titre<input name="eyebrow" maxlength="80" value="${htmlEscape(projectMeta.eyebrow || "")}"></label>
+        <label>Description<textarea name="subtitle">${htmlEscape(projectMeta.subtitle || "")}</textarea></label>
+        <label>Principes — un par ligne<textarea name="principles">${htmlEscape((projectMeta.principles || []).join("\n"))}</textarea></label>
+        <label>Fondations — une par ligne<textarea name="foundations">${htmlEscape((foundations || []).join("\n"))}</textarea></label>
+        <div class="field-grid">
+          <label>Largeur canevas<input name="canvasWidth" type="number" min="900" max="4000" step="50" value="${canvas.width}"></label>
+          <label>Hauteur canevas<input name="canvasHeight" type="number" min="650" max="3000" step="50" value="${canvas.height}"></label>
+          <label>Socle inférieur<input name="foundationHeight" type="number" min="140" max="400" step="10" value="${canvas.foundationHeight}"></label>
+        </div>
+        <div class="form-actions">
+          <button class="form-button primary" type="submit">Appliquer</button>
+          <button class="form-button" type="button" id="newFromTemplate">Nouveau depuis le modèle</button>
+          <button class="form-button" type="button" id="newBlankProject">Nouveau vierge</button>
+          <button class="form-button" type="button" id="duplicateProject">Dupliquer</button>
+          ${Object.keys(projects).length > 1 ? '<button class="form-button danger" type="button" id="deleteProject">Supprimer le projet</button>' : ""}
+          <button class="form-button" type="button" id="cancelProjectEdit">Fermer</button>
+        </div>
+      </form></li>`;
+      detailDecision.innerHTML = `<div class="decision-box"><strong>${nodes.length} composants · ${zones.length} zones · ${Object.keys(scenarios).length} scénarios</strong><p>Chaque projet est sauvegardé séparément dans la bibliothèque locale et peut être exporté en JSON.</p></div>`;
+
+      document.getElementById("projectForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        projectMeta.name = String(data.get("name") || "Projet").trim();
+        projectMeta.title = String(data.get("title") || projectMeta.name).trim();
+        projectMeta.eyebrow = String(data.get("eyebrow") || "").trim();
+        projectMeta.subtitle = String(data.get("subtitle") || "").trim();
+        projectMeta.principles = String(data.get("principles") || "").split("\n").map(s => s.trim()).filter(Boolean);
+        foundations = String(data.get("foundations") || "").split("\n").map(s => s.trim()).filter(Boolean);
+        canvas.width = Math.max(900, Math.min(4000, Number(data.get("canvasWidth")) || 1900));
+        canvas.height = Math.max(650, Math.min(3000, Number(data.get("canvasHeight")) || 1120));
+        canvas.foundationHeight = Math.max(140, Math.min(canvas.height - 300, Number(data.get("foundationHeight")) || 158));
+        viewBox = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+        commit("Projet modifié");
+        refreshDiagram();
+        showProjectEditor();
+      });
+      document.getElementById("cancelProjectEdit").addEventListener("click", () => showScenarioDetails(activeScenario));
+      document.getElementById("newFromTemplate").addEventListener("click", () => createProject(defaultProject, "Architecture Foundry + ARO — copie"));
+      document.getElementById("newBlankProject").addEventListener("click", () => createProject(blankProject(), "Nouvelle architecture"));
+      document.getElementById("duplicateProject").addEventListener("click", () => createProject(currentProjectData(), `${projectMeta.name} — copie`));
+      document.getElementById("deleteProject")?.addEventListener("click", () => {
+        if (!confirm(`Supprimer le projet « ${projectMeta.name} » de la bibliothèque locale ?`)) return;
+        delete projects[activeProjectId];
+        activeProjectId = Object.keys(projects)[0];
+        applyProject(projects[activeProjectId]);
+        saveLocal("Projet supprimé");
+        refreshDiagram();
+        showProjectEditor();
       });
     }
 
@@ -1579,8 +1903,8 @@
       const rect = svg.getBoundingClientRect();
       const px = clientX == null ? .5 : (clientX - rect.left) / rect.width;
       const py = clientY == null ? .5 : (clientY - rect.top) / rect.height;
-      const newW = Math.min(2600, Math.max(720, viewBox.w * factor));
-      const newH = newW * 1120 / 1900;
+      const newW = Math.min(canvas.width * 1.6, Math.max(Math.min(620, canvas.width), viewBox.w * factor));
+      const newH = newW * canvas.height / canvas.width;
       viewBox.x += (viewBox.w - newW) * px;
       viewBox.y += (viewBox.h - newH) * py;
       viewBox.w = newW; viewBox.h = newH;
@@ -1590,7 +1914,7 @@
     document.getElementById("zoomIn").addEventListener("click", () => zoom(.82));
     document.getElementById("zoomOut").addEventListener("click", () => zoom(1.22));
     document.getElementById("zoomReset").addEventListener("click", () => {
-      viewBox = { x: 0, y: 0, w: 1900, h: 1120 }; setViewBox();
+      viewBox = { x: 0, y: 0, w: canvas.width, h: canvas.height }; setViewBox();
     });
 
     svg.addEventListener("wheel", event => {
@@ -1601,6 +1925,7 @@
     svg.addEventListener("pointerdown", event => {
       if (event.target.closest?.(".node")) return;
       if (editMode && event.target.closest?.(".flow-path, .flow-hit")) return;
+      if (editMode && event.target.closest?.(".zone-group")) return;
       svg.setPointerCapture(event.pointerId);
       dragStart = { x: event.clientX, y: event.clientY, vx: viewBox.x, vy: viewBox.y };
       svg.classList.add("dragging");
@@ -1657,13 +1982,16 @@
       selectedNode = null;
       selectedLink = null;
       renderFlows(activeScenario);
-      editMode ? showScenarioEditor() : showScenarioDetails(activeScenario);
+      editMode ? showProjectEditor() : showScenarioDetails(activeScenario);
     }
 
     editButton.addEventListener("click", () => setEditMode(!editMode));
+    document.getElementById("editProject").addEventListener("click", showProjectEditor);
+    document.getElementById("addZone").addEventListener("click", () => showZoneEditor());
     document.getElementById("addNode").addEventListener("click", () => showNodeEditor());
     document.getElementById("addLink").addEventListener("click", () => showLinkEditor());
     document.getElementById("editScenario").addEventListener("click", showScenarioEditor);
+    projectSelect.addEventListener("change", () => switchProject(projectSelect.value));
 
     document.getElementById("undoEdit").addEventListener("click", () => {
       if (historyIndex <= 0) return;
@@ -1688,17 +2016,18 @@
     });
 
     document.getElementById("exportJson").addEventListener("click", () => {
-      const payload = { schemaVersion: 1, exportedAt: new Date().toISOString(), nodes, scenarios };
-      downloadFile("architecture-foundry-aro.json", JSON.stringify(payload, null, 2), "application/json");
+      const payload = { schemaVersion: 2, exportedAt: new Date().toISOString(), ...currentProjectData() };
+      const fileName = (projectMeta.name || "architecture").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+      downloadFile(`${fileName || "architecture"}.json`, JSON.stringify(payload, null, 2), "application/json");
       saveStatus.textContent = "JSON exporté";
     });
 
     document.getElementById("exportSvg").addEventListener("click", () => {
       const clone = svg.cloneNode(true);
       clone.setAttribute("xmlns", NS);
-      clone.setAttribute("width", "1900");
-      clone.setAttribute("height", "1120");
-      clone.setAttribute("viewBox", "0 0 1900 1120");
+      clone.setAttribute("width", String(canvas.width));
+      clone.setAttribute("height", String(canvas.height));
+      clone.setAttribute("viewBox", `0 0 ${canvas.width} ${canvas.height}`);
       clone.querySelectorAll("animateMotion, .flow-particle").forEach(item => item.remove());
       const style = document.createElementNS(NS, "style");
       style.textContent = document.querySelector("style").textContent;
@@ -1716,13 +2045,23 @@
       reader.onload = () => {
         try {
           const state = JSON.parse(reader.result);
+          if (!state.meta) {
+            state.meta = copy(defaultProject.meta);
+            state.canvas = copy(defaultProject.canvas);
+            state.zones = copy(defaultProject.zones);
+            state.foundations = copy(defaultProject.foundations);
+          }
           validateState(state);
-          nodes = state.nodes;
-          scenarios = state.scenarios;
-          activeScenario = scenarios.overview ? "overview" : Object.keys(scenarios)[0];
-          commit("Architecture importée");
+          const name = `${state.meta.name || state.meta.title || "Architecture importée"} — import`;
+          const id = uniqueProjectId(name);
+          const imported = { ...state, id, meta: { ...state.meta, name } };
+          projects[activeProjectId] = copy(currentProjectData());
+          projects[id] = copy(imported);
+          activeProjectId = id;
+          applyProject(imported);
+          saveLocal("Architecture importée");
           refreshDiagram();
-          showScenarioEditor();
+          showProjectEditor();
         } catch (error) {
           alert(`Import impossible : ${error.message}`);
         } finally {
@@ -1733,20 +2072,21 @@
     });
 
     document.getElementById("resetEditor").addEventListener("click", () => {
-      if (!confirm("Revenir au diagramme d’origine ? Vous pourrez encore utiliser Annuler pendant cette session.")) return;
-      nodes = JSON.parse(JSON.stringify(defaultState.nodes));
-      scenarios = JSON.parse(JSON.stringify(defaultState.scenarios));
+      if (!confirm("Remplacer le projet actif par le modèle Foundry + ARO d’origine ? Vous pourrez encore utiliser Annuler pendant cette session.")) return;
+      projectMeta = copy(defaultProject.meta);
+      canvas = copy(defaultProject.canvas);
+      zones = copy(defaultProject.zones);
+      foundations = copy(defaultProject.foundations);
+      nodes = copy(defaultProject.nodes);
+      scenarios = copy(defaultProject.scenarios);
       activeScenario = "rag";
-      commit("Diagramme réinitialisé");
+      viewBox = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+      commit("Projet réinitialisé depuis le modèle");
       refreshDiagram();
-      showScenarioEditor();
+      showProjectEditor();
     });
 
-    renderZones();
-    renderBaseLinks();
-    renderNodes();
-    renderScenarioButtons();
-    selectScenario(activeScenario);
+    refreshDiagram();
     updateHistoryButtons();
   </script>
 </body>
