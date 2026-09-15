@@ -425,16 +425,23 @@
     .form-note { color: #7893aa; font-size: 10.5px; line-height: 1.45; }
 
     .legend {
+      position: absolute;
+      z-index: 4;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
       display: flex;
       flex-wrap: wrap;
       gap: 10px 16px;
       align-items: center;
-      margin-top: 14px;
+      margin: 0;
       padding: 12px 16px;
       border: 1px solid var(--line);
       border-radius: 15px;
       color: var(--muted);
-      background: rgba(8, 21, 36, .6);
+      background: rgba(5, 17, 30, .9);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, .3);
+      backdrop-filter: blur(14px);
       font-size: 11px;
     }
 
@@ -449,6 +456,23 @@
       background: var(--legend-color);
       box-shadow: 0 0 10px color-mix(in srgb, var(--legend-color) 40%, transparent);
     }
+
+    .legend-toggle {
+      padding: 0;
+      border: 0;
+      color: #dceaf5;
+      background: transparent;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .legend.collapsed {
+      right: auto;
+      padding: 10px 13px;
+    }
+
+    .legend.collapsed .legend-item,
+    .legend.collapsed .legend-help { display: none; }
 
     .footer-note {
       margin: 10px 2px 0;
@@ -646,6 +670,18 @@
           <button class="tool-button" id="editMode" title="Activer le mode édition" aria-label="Activer le mode édition">Éditer</button>
         </div>
 
+        <section class="legend" id="flowLegend" aria-label="Légende des liens">
+          <button class="legend-toggle" id="legendToggle" type="button" aria-expanded="true">Flux</button>
+          <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--cyan)"></i>Utilisateur / entrée</span>
+          <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--blue)"></i>Applicatif</span>
+          <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--purple)"></i>IA / modèle</span>
+          <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--green)"></i>Données</span>
+          <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--orange)"></i>Outil / action</span>
+          <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--yellow)"></i>Asynchrone</span>
+          <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--pink)"></i>Humain / contrôle</span>
+          <span class="legend-help">· Cliquez un composant pour connaître son rôle · Glissez pour déplacer · Molette pour zoomer</span>
+        </section>
+
         <svg id="architecture" viewBox="0 0 1900 1120" role="img" aria-labelledby="svgTitle svgDescription">
           <title id="svgTitle">Architecture animée Microsoft Foundry et Azure Red Hat OpenShift</title>
           <desc id="svgDescription">Flux applicatifs, IA, données et agents au travers d’une architecture sécurisée Azure.</desc>
@@ -684,17 +720,6 @@
       </aside>
     </section>
 
-    <section class="legend" aria-label="Légende">
-      <b>Flux</b>
-      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--cyan)"></i>Utilisateur / entrée</span>
-      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--blue)"></i>Applicatif</span>
-      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--purple)"></i>IA / modèle</span>
-      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--green)"></i>Données</span>
-      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--orange)"></i>Outil / action</span>
-      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--yellow)"></i>Asynchrone</span>
-      <span class="legend-item"><i class="legend-dot" style="--legend-color:var(--pink)"></i>Humain / contrôle</span>
-      <span>· Cliquez un composant pour connaître son rôle · Glissez pour déplacer · Molette pour zoomer</span>
-    </section>
     <p class="footer-note">Diagramme autonome HTML/SVG · aucune donnée ni bibliothèque externe</p>
   </main>
 
@@ -1434,12 +1459,10 @@
           }
         }
 
-        if (!isOverview && !secondary) {
-          const point = path.getPointAtLength(path.getTotalLength() * .53);
-          const badge = el("g", { class: "flow-badge", style: `--flow-color:${color}` }, overlayLayer);
-          el("circle", { cx: point.x, cy: point.y, r: 9 }, badge);
-          el("text", { x: point.x, y: point.y + .5, text: String(index + 1) }, badge);
-        }
+        const point = path.getPointAtLength(path.getTotalLength() * .53);
+        const badge = el("g", { class: "flow-badge", style: `--flow-color:${color}` }, overlayLayer);
+        el("circle", { cx: point.x, cy: point.y, r: secondary || isOverview ? 7.5 : 9 }, badge);
+        el("text", { x: point.x, y: point.y + .5, text: String(index + 1) }, badge);
       });
 
       document.querySelectorAll(".node").forEach(g => {
@@ -1956,6 +1979,16 @@
       animationPaused ? svg.pauseAnimations() : svg.unpauseAnimations();
       pauseButton.textContent = animationPaused ? "Lecture" : "Pause";
       pauseButton.classList.toggle("active", animationPaused);
+    });
+
+    const flowLegend = document.getElementById("flowLegend");
+    const legendToggle = document.getElementById("legendToggle");
+    if (window.matchMedia("(max-width: 650px)").matches) flowLegend.classList.add("collapsed");
+    legendToggle.setAttribute("aria-expanded", String(!flowLegend.classList.contains("collapsed")));
+    legendToggle.addEventListener("click", () => {
+      const collapsed = flowLegend.classList.toggle("collapsed");
+      legendToggle.setAttribute("aria-expanded", String(!collapsed));
+      legendToggle.textContent = collapsed ? "Flux +" : "Flux";
     });
 
     const autoButton = document.getElementById("autoPlay");
