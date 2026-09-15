@@ -492,7 +492,8 @@
       transition: opacity .25s ease, stroke .25s ease, fill .25s ease, filter .25s ease;
     }
 
-    .node { cursor: pointer; transition: opacity .25s ease; }
+    .node { cursor: grab; transition: opacity .25s ease; }
+    .node.dragging { cursor: grabbing; }
     .node:hover .node-shell { stroke: rgba(255,255,255,.62); }
     .node.dimmed { opacity: .24; }
     .node.active .node-shell {
@@ -503,7 +504,6 @@
 
     .node.selected .node-shell { stroke-width: 2.6; }
 
-    body.editor-on .node { cursor: move; }
     body.editor-on .node.dimmed { opacity: .62; }
     body.editor-on .node .node-shell { stroke-dasharray: 5 3; }
     body.editor-on .flow-path { cursor: pointer; pointer-events: stroke; }
@@ -1281,6 +1281,7 @@
       if (!nodeDrag) return;
       const drag = nodeDrag;
       nodeDrag = null;
+      drag.g.classList.remove("dragging");
       if (!drag.moved) return;
       const point = clientToSvg(event.clientX, event.clientY);
       const node = nodeMap[drag.id];
@@ -1308,11 +1309,11 @@
         el("text", { x: n.x + 59, y: n.y + 43, class: "node-subtitle", text: n.sub }, g);
         el("text", { x: n.x + 59, y: n.y + 58, class: "node-boundary", text: n.boundary }, g);
         g.addEventListener("pointerdown", event => {
-          if (!editMode) return;
           event.stopPropagation();
           g.setPointerCapture(event.pointerId);
           const point = clientToSvg(event.clientX, event.clientY);
           nodeDrag = { id: n.id, g, startX: point.x, startY: point.y, nodeX: n.x, nodeY: n.y, moved: false };
+          g.classList.add("dragging");
         });
         g.addEventListener("pointermove", event => {
           if (!nodeDrag || nodeDrag.id !== n.id) return;

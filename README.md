@@ -6,6 +6,7 @@ Ouvrez `index.html` dans un navigateur moderne. L’application est entièrement
 
 - Choisissez un scénario dans la barre supérieure.
 - Cliquez un composant pour afficher son rôle.
+- Glissez directement un composant pour le repositionner, même sans activer le mode édition.
 - Utilisez la molette pour zoomer et glissez le fond pour déplacer le canevas.
 - `Auto` présente successivement tous les cas d’usage.
 
